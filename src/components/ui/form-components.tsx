@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { ExclamationTriangleIcon, CheckCircleIcon, InfoIcon } from "lucide-react";
+import { AlertTriangle, CheckCircle, Info } from "lucide-react";
 
 // FormGroup
 interface FormGroupProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -68,19 +68,19 @@ const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(
         />
         {error && (
           <div className="flex items-center gap-1 text-xs text-destructive mt-1">
-            <ExclamationTriangleIcon className="h-3 w-3" />
+            <AlertTriangle className="h-3 w-3" />
             <span>{error}</span>
           </div>
         )}
         {success && !error && (
           <div className="flex items-center gap-1 text-xs text-accent mt-1">
-            <CheckCircleIcon className="h-3 w-3" />
+            <CheckCircle className="h-3 w-3" />
             <span>Input is valid</span>
           </div>
         )}
         {helpText && !error && (
           <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-            <InfoIcon className="h-3 w-3" />
+            <Info className="h-3 w-3" />
             <span>{helpText}</span>
           </div>
         )}
@@ -112,19 +112,19 @@ const FormTextarea = React.forwardRef<HTMLTextAreaElement, FormTextareaProps>(
         />
         {error && (
           <div className="flex items-center gap-1 text-xs text-destructive mt-1">
-            <ExclamationTriangleIcon className="h-3 w-3" />
+            <AlertTriangle className="h-3 w-3" />
             <span>{error}</span>
           </div>
         )}
         {success && !error && (
           <div className="flex items-center gap-1 text-xs text-accent mt-1">
-            <CheckCircleIcon className="h-3 w-3" />
+            <CheckCircle className="h-3 w-3" />
             <span>Input is valid</span>
           </div>
         )}
         {helpText && !error && (
           <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-            <InfoIcon className="h-3 w-3" />
+            <Info className="h-3 w-3" />
             <span>{helpText}</span>
           </div>
         )}
@@ -162,7 +162,7 @@ const FormCheckbox = React.forwardRef<HTMLButtonElement, FormCheckboxProps>(
         </div>
         {error && (
           <div className="flex items-center gap-1 text-xs text-destructive mt-1">
-            <ExclamationTriangleIcon className="h-3 w-3" />
+            <AlertTriangle className="h-3 w-3" />
             <span>{error}</span>
           </div>
         )}
