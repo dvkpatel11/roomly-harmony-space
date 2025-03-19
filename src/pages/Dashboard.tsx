@@ -5,29 +5,57 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { EmptyState, LoadingOverlay, ShimmerCard } from '@/components/ui/loading-states';
 import { CheckCircle, Home, LayoutDashboard, ListChecks, Plus, Users } from 'lucide-react';
-import { mockTasks, mockHouseholds } from '@/mock';
+import { getHouseholds, getTasks } from '@/services/service-provider';
 import { useToast } from '@/hooks/use-toast';
 
 const Dashboard = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [tasksLoading, setTasksLoading] = useState(false);
-  const currentHousehold = mockHouseholds.currentHousehold;
-  const householdMembers = mockHouseholds.members;
+  const [currentHousehold, setCurrentHousehold] = useState<any>(null);
+  const [householdMembers, setHouseholdMembers] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
+  const [householdsList, setHouseholdsList] = useState<any[]>([]);
 
-  // Load tasks when component mounts
+  // Load data when component mounts
   React.useEffect(() => {
-    loadTasks();
-  }, []);
+    const loadInitialData = async () => {
+      try {
+        const householdService = getHouseholds();
+        const activeHousehold = await householdService.getActiveHousehold();
+        
+        if (activeHousehold) {
+          setCurrentHousehold(activeHousehold);
+          setHouseholdMembers(activeHousehold.members || []);
+        }
+        
+        const householdsResponse = await householdService.getHouseholds();
+        setHouseholdsList(householdsResponse.households);
+        
+        // Load tasks after we have the household
+        if (activeHousehold) {
+          loadTasks(activeHousehold.id);
+        }
+      } catch (error) {
+        console.error('Error loading initial data:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to load household data',
+          variant: 'destructive',
+        });
+      }
+    };
+    
+    loadInitialData();
+  }, [toast]);
 
-  const loadTasks = async () => {
+  const loadTasks = async (householdId: string) => {
     setTasksLoading(true);
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      const response = await mockTasks.getTasks(currentHousehold.id, { status: 'incomplete' });
-      setTasks(response.data);
+      // Get tasks using the service provider
+      const taskService = getTasks();
+      const response = await taskService.getTasks(householdId, { status: "incomplete" });
+      setTasks(response.tasks || []);
     } catch (error) {
       console.error('Error loading tasks:', error);
       toast({
@@ -43,9 +71,9 @@ const Dashboard = () => {
   const completeTask = async (taskId: string) => {
     setLoading(true);
     try {
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 800));
-      await mockTasks.completeTask(taskId);
+      // Use task service to complete the task
+      const taskService = getTasks();
+      await taskService.completeTask(taskId);
       
       // Update local state
       setTasks(tasks.filter(task => task.id !== taskId));
@@ -66,6 +94,23 @@ const Dashboard = () => {
       setLoading(false);
     }
   };
+
+  // If no household is loaded yet, show a loading state
+  if (!currentHousehold) {
+    return (
+      <PageTransition>
+        <div className="space-y-6">
+          <ShimmerCard className="h-12" />
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <ShimmerCard className="h-24" />
+            <ShimmerCard className="h-24" />
+            <ShimmerCard className="h-24" />
+            <ShimmerCard className="h-24" />
+          </div>
+        </div>
+      </PageTransition>
+    );
+  }
 
   return (
     <PageTransition>
@@ -127,9 +172,9 @@ const Dashboard = () => {
               <Home className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{mockHouseholds.householdsList.length}</div>
+              <div className="text-2xl font-bold">{householdsList.length}</div>
               <p className="text-xs text-muted-foreground">
-                Across {mockHouseholds.householdsList.length} locations
+                Across {householdsList.length} locations
               </p>
             </CardContent>
           </Card>
@@ -156,7 +201,7 @@ const Dashboard = () => {
                         <div className="flex flex-col">
                           <span className="font-medium">{task.title}</span>
                           <span className="text-sm text-muted-foreground">
-                            Due {new Date(task.dueDate).toLocaleDateString()}
+                            Due {new Date(task.due_date).toLocaleDateString()}
                           </span>
                         </div>
                         <Button 

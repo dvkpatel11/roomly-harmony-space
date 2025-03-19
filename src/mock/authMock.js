@@ -15,11 +15,10 @@ export const mockAuth = {
     createdAt: '2023-01-15T08:00:00Z'
   },
   
-  login: (email, password) => {
+  login: (credentials) => {
     // Simulate successful login with demo credentials
-    if (email === 'demo@example.com' && password === 'password') {
+    if (credentials.email === 'demo@example.com' && credentials.password === 'password') {
       return Promise.resolve({
-        success: true,
         access_token: 'mock-jwt-token',
         refresh_token: 'mock-refresh-token',
         user: {
@@ -37,9 +36,9 @@ export const mockAuth = {
     }
     
     // Simulate failed login
-    return Promise.resolve({ 
-      success: false, 
-      error: 'Invalid email or password' 
+    return Promise.reject({ 
+      status: 401,
+      message: 'Invalid email or password' 
     });
   },
   
