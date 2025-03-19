@@ -11,6 +11,7 @@ import {
   PollService,
   ChatService
 } from "@/types/index";
+import { TaskMockService } from "./task/task-mock.service";
 
 // Auth service
 export const getAuthService = (): AuthService => {
@@ -24,7 +25,7 @@ export const getHouseholdService = (): HouseholdService => {
 
 // Task service
 export const getTaskService = (): TaskService => {
-  throw new Error("Real task service not implemented");
+  return new TaskMockService();
 };
 
 // Notification service

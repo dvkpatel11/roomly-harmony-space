@@ -1,4 +1,6 @@
 
+import { TaskFrequency } from '../types';
+
 export const mockTasks = {
   tasksList: [
     {
