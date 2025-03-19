@@ -15,16 +15,15 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { mockAuth } from '@/mock';
-import { mockHouseholds } from '@/mock';
 import { mockNotifications } from '@/mock';
+import { useHousehold } from '@/contexts/HouseholdContext';
 
 const Header: React.FC = () => {
   const { toast } = useToast();
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [unreadCount, setUnreadCount] = useState<number>(3);
   const user = mockAuth.currentUser;
-  const households = mockHouseholds.householdsList;
-  const currentHousehold = mockHouseholds.currentHousehold;
+  const { households, currentHousehold, setCurrentHousehold } = useHousehold();
 
   const toggleTheme = () => {
     const newTheme = theme === 'light' ? 'dark' : 'light';
@@ -42,8 +41,17 @@ const Header: React.FC = () => {
     mockNotifications.getNotifications({ isRead: false }).then(response => {
       toast({
         title: 'Notifications',
-        description: `You have ${response.data.length} unread notifications`,
+        description: `You have ${response.notifications.length} unread notifications`,
       });
+    });
+  };
+
+  const handleHouseholdSelect = (household) => {
+    setCurrentHousehold(household);
+    toast({
+      title: 'Household Changed',
+      description: `Switched to ${household.name}`,
+      duration: 1500,
     });
   };
 
@@ -55,7 +63,7 @@ const Header: React.FC = () => {
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="flex items-center gap-2">
               <House size={18} />
-              <span className="hidden md:inline">{currentHousehold.name}</span>
+              <span className="hidden md:inline">{currentHousehold ? currentHousehold.name : 'Select Household'}</span>
               <ChevronDown size={16} className="opacity-70" />
             </Button>
           </DropdownMenuTrigger>
@@ -63,19 +71,25 @@ const Header: React.FC = () => {
             <DropdownMenuLabel>Your Households</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {households.map(household => (
-              <DropdownMenuItem key={household.id} className="cursor-pointer">
+              <DropdownMenuItem 
+                key={household.id} 
+                className="cursor-pointer"
+                onClick={() => handleHouseholdSelect(household)}
+              >
                 <div className="flex items-center gap-2">
                   <House size={16} />
                   <span>{household.name}</span>
-                  {household.id === currentHousehold.id && (
+                  {currentHousehold && household.id === currentHousehold.id && (
                     <Badge variant="outline" className="ml-auto">Current</Badge>
                   )}
                 </div>
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer">
-              <span className="text-primary">+ Create Household</span>
+            <DropdownMenuItem asChild className="cursor-pointer">
+              <Link to="/household" className="text-primary">
+                <span className="flex items-center w-full">+ Manage Households</span>
+              </Link>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

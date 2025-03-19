@@ -8,7 +8,7 @@ import {
   BadgeService,
   PollService,
   ChatService
-} from "@/types";
+} from "@/types/index";
 import { 
   mockAuth, 
   mockHouseholds, 

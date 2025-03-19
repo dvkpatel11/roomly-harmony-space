@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-route
 import { AnimatePresence } from "framer-motion";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { HouseholdProvider } from "@/contexts/HouseholdContext";
 
 // Pages
 import Index from "./pages/Index";
@@ -16,6 +17,7 @@ import Dashboard from "./pages/Dashboard";
 import Tasks from "./pages/Tasks";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import Household from "./pages/Household";
 
 // Layouts
 import Sidebar from "./components/layout/Sidebar";
@@ -93,6 +95,18 @@ const AnimatedRoutes = () => {
             )
           } 
         />
+        <Route 
+          path="/household" 
+          element={
+            isAuthenticated ? (
+              <AppLayout>
+                <Household />
+              </AppLayout>
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          } 
+        />
         
         {/* Catch all route */}
         <Route path="*" element={<NotFound />} />
@@ -104,13 +118,15 @@ const AnimatedRoutes = () => {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AnimatedRoutes />
-        </BrowserRouter>
-      </TooltipProvider>
+      <HouseholdProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AnimatedRoutes />
+          </BrowserRouter>
+        </TooltipProvider>
+      </HouseholdProvider>
     </ThemeProvider>
   </QueryClientProvider>
 );
