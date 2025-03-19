@@ -4,62 +4,62 @@ export const mockTasks = {
     {
       id: 'task-1',
       title: 'Clean kitchen',
-      frequency: 'weekly',
-      dueDate: '2023-06-15T18:00:00Z',
+      household_id: 'household-1',
+      created_by: 'user-1',
+      assigned_to: 'user-1',
+      due_date: '2023-06-15T18:00:00Z',
       completed: false,
-      completedAt: null,
-      createdAt: '2023-06-10T10:00:00Z',
-      householdId: 'household-1',
-      createdBy: 'user-1',
-      assignedTo: 'user-1'
+      completed_at: null,
+      frequency: 'weekly',
+      created_at: '2023-06-10T10:00:00Z'
     },
     {
       id: 'task-2',
       title: 'Take out trash',
-      frequency: 'daily',
-      dueDate: '2023-06-14T20:00:00Z',
+      household_id: 'household-1',
+      created_by: 'user-1',
+      assigned_to: 'user-2',
+      due_date: '2023-06-14T20:00:00Z',
       completed: true,
-      completedAt: '2023-06-14T19:30:00Z',
-      createdAt: '2023-06-10T10:15:00Z',
-      householdId: 'household-1',
-      createdBy: 'user-1',
-      assignedTo: 'user-2'
+      completed_at: '2023-06-14T19:30:00Z',
+      frequency: 'daily',
+      created_at: '2023-06-10T10:15:00Z'
     },
     {
       id: 'task-3',
       title: 'Grocery shopping',
-      frequency: 'weekly',
-      dueDate: '2023-06-17T19:00:00Z',
+      household_id: 'household-1',
+      created_by: 'user-3',
+      assigned_to: 'user-3',
+      due_date: '2023-06-17T19:00:00Z',
       completed: false,
-      completedAt: null,
-      createdAt: '2023-06-10T10:30:00Z',
-      householdId: 'household-1',
-      createdBy: 'user-3',
-      assignedTo: 'user-3'
+      completed_at: null,
+      frequency: 'weekly',
+      created_at: '2023-06-10T10:30:00Z'
     },
     {
       id: 'task-4',
       title: 'Water plants',
-      frequency: 'weekly',
-      dueDate: '2023-06-16T10:00:00Z',
+      household_id: 'household-1',
+      created_by: 'user-2',
+      assigned_to: 'user-4',
+      due_date: '2023-06-16T10:00:00Z',
       completed: false,
-      completedAt: null,
-      createdAt: '2023-06-11T09:00:00Z',
-      householdId: 'household-1',
-      createdBy: 'user-2',
-      assignedTo: 'user-4'
+      completed_at: null,
+      frequency: 'weekly',
+      created_at: '2023-06-11T09:00:00Z'
     },
     {
       id: 'task-5',
       title: 'Clean bathroom',
-      frequency: 'weekly',
-      dueDate: '2023-06-18T12:00:00Z',
+      household_id: 'household-1',
+      created_by: 'user-1',
+      assigned_to: 'user-2',
+      due_date: '2023-06-18T12:00:00Z',
       completed: false,
-      completedAt: null,
-      createdAt: '2023-06-11T09:15:00Z',
-      householdId: 'household-1',
-      createdBy: 'user-1',
-      assignedTo: 'user-2'
+      completed_at: null,
+      frequency: 'weekly',
+      created_at: '2023-06-11T09:15:00Z'
     }
   ],
   
@@ -67,77 +67,77 @@ export const mockTasks = {
     {
       id: 'rule-1',
       taskId: 'task-1',
-      intervalDays: 7, // weekly
-      anchorDate: '2023-06-08T18:00:00Z',
-      endDate: null
+      interval_days: 7, // weekly
+      end_date: null
     },
     {
       id: 'rule-2',
       taskId: 'task-2',
-      intervalDays: 1, // daily
-      anchorDate: '2023-06-13T20:00:00Z',
-      endDate: null
+      interval_days: 1, // daily
+      end_date: null
     }
   ],
   
   getTasks: (householdId, filters = {}) => {
-    let filteredTasks = mockTasks.tasksList.filter(task => task.householdId === householdId);
+    let filteredTasks = mockTasks.tasksList.filter(task => task.household_id === householdId);
     
     // Apply status filter if provided
     if (filters.status === 'completed') {
       filteredTasks = filteredTasks.filter(task => task.completed);
-    } else if (filters.status === 'incomplete') {
+    } else if (filters.status === 'pending') {
       filteredTasks = filteredTasks.filter(task => !task.completed);
     }
     
     // Apply assignment filter if provided
     if (filters.assignedTo) {
-      filteredTasks = filteredTasks.filter(task => task.assignedTo === filters.assignedTo);
+      filteredTasks = filteredTasks.filter(task => task.assigned_to === filters.assignedTo);
+    }
+
+    // Apply frequency filter if provided
+    if (filters.frequency && filters.frequency !== 'all') {
+      filteredTasks = filteredTasks.filter(task => task.frequency === filters.frequency);
     }
     
     return Promise.resolve({
-      data: filteredTasks
+      tasks: filteredTasks,
+      total: filteredTasks.length,
+      page: filters.page || 1,
+      per_page: filters.per_page || 20
     });
   },
   
-  createTask: (taskData) => {
-    const newTask = {
-      id: `task-${Date.now()}`,
-      title: taskData.title,
-      frequency: taskData.frequency || 'one_time',
-      dueDate: taskData.dueDate || null,
-      completed: false,
-      completedAt: null,
-      createdAt: new Date().toISOString(),
-      householdId: taskData.householdId,
-      createdBy: taskData.createdBy,
-      assignedTo: taskData.assignedTo
-    };
-    
+  getUserTasks: (userId) => {
+    const userTasks = mockTasks.tasksList.filter(task => task.assigned_to === userId);
+    return Promise.resolve(userTasks);
+  },
+  
+  createTask: (householdId, taskData) => {
     return Promise.resolve({
-      data: newTask
+      message: 'Task created successfully',
+      task_id: `task-${Date.now()}`,
+      assigned_to: taskData.preferred_assignee || 'user-1'
     });
+  },
+  
+  updateTask: (taskId, request) => {
+    return Promise.resolve();
   },
   
   completeTask: (taskId) => {
     return Promise.resolve({
-      data: {
-        success: true,
-        streakCount: 3
-      }
+      message: 'Task completed successfully',
+      streak: 3
     });
   },
   
-  swapTask: (taskId, newAssigneeId) => {
+  deleteTask: (taskId) => {
+    return Promise.resolve();
+  },
+  
+  swapTask: (taskId, request) => {
     return Promise.resolve({
-      data: {
-        success: true,
-        newAssignee: {
-          id: newAssigneeId,
-          email: 'jane@example.com',
-          firstName: 'Jane'
-        }
-      }
+      message: 'Task swapped successfully',
+      new_assignee: request.new_assignee_id
     });
   }
 };

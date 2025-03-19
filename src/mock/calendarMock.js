@@ -4,87 +4,57 @@ export const mockCalendar = {
     {
       id: 'event-1',
       title: 'House Meeting',
-      startTime: '2023-06-18T19:00:00Z',
-      endTime: '2023-06-18T20:00:00Z',
-      recurrenceRule: null,
-      privacy: 'public',
-      createdAt: '2023-06-10T14:30:00Z',
-      householdId: 'household-1',
-      userId: 'user-1',
-      creator: {
-        id: 'user-1',
-        firstName: 'Demo',
-        lastName: 'User'
-      }
+      start_time: '2023-06-18T19:00:00Z',
+      end_time: '2023-06-18T20:00:00Z',
+      recurrence_rule: null,
+      household_id: 'household-1',
+      created_by: 'user-1',
+      created_at: '2023-06-10T14:30:00Z'
     },
     {
       id: 'event-2',
       title: 'Movie Night',
-      startTime: '2023-06-20T20:00:00Z',
-      endTime: '2023-06-20T22:30:00Z',
-      recurrenceRule: null,
-      privacy: 'public',
-      createdAt: '2023-06-12T10:15:00Z',
-      householdId: 'household-1',
-      userId: 'user-2',
-      creator: {
-        id: 'user-2',
-        firstName: 'Jane',
-        lastName: 'Doe'
-      }
+      start_time: '2023-06-20T20:00:00Z',
+      end_time: '2023-06-20T22:30:00Z',
+      recurrence_rule: null,
+      household_id: 'household-1',
+      created_by: 'user-2',
+      created_at: '2023-06-12T10:15:00Z'
     },
     {
       id: 'event-3',
       title: 'Rent Due',
-      startTime: '2023-07-01T00:00:00Z',
-      endTime: '2023-07-01T23:59:59Z',
-      recurrenceRule: 'FREQ=MONTHLY;BYMONTHDAY=1',
-      privacy: 'public',
-      createdAt: '2023-06-15T09:00:00Z',
-      householdId: 'household-1',
-      userId: 'user-1',
-      creator: {
-        id: 'user-1',
-        firstName: 'Demo',
-        lastName: 'User'
-      }
+      start_time: '2023-07-01T00:00:00Z',
+      end_time: '2023-07-01T23:59:59Z',
+      recurrence_rule: 'FREQ=MONTHLY;BYMONTHDAY=1',
+      household_id: 'household-1',
+      created_by: 'user-1',
+      created_at: '2023-06-15T09:00:00Z'
     },
     {
       id: 'event-4',
       title: 'Utility Bills Payment',
-      startTime: '2023-06-25T00:00:00Z',
-      endTime: '2023-06-25T23:59:59Z',
-      recurrenceRule: 'FREQ=MONTHLY;BYMONTHDAY=25',
-      privacy: 'public',
-      createdAt: '2023-06-15T09:15:00Z',
-      householdId: 'household-1',
-      userId: 'user-1',
-      creator: {
-        id: 'user-1',
-        firstName: 'Demo',
-        lastName: 'User'
-      }
+      start_time: '2023-06-25T00:00:00Z',
+      end_time: '2023-06-25T23:59:59Z',
+      recurrence_rule: 'FREQ=MONTHLY;BYMONTHDAY=25',
+      household_id: 'household-1',
+      created_by: 'user-1',
+      created_at: '2023-06-15T09:15:00Z'
     },
     {
       id: 'event-5',
       title: 'Sam\'s Birthday Party',
-      startTime: '2023-06-30T18:00:00Z',
-      endTime: '2023-06-30T23:00:00Z',
-      recurrenceRule: null,
-      privacy: 'public',
-      createdAt: '2023-06-16T11:30:00Z',
-      householdId: 'household-1',
-      userId: 'user-3',
-      creator: {
-        id: 'user-3',
-        firstName: 'Sam',
-        lastName: 'Smith'
-      }
+      start_time: '2023-06-30T18:00:00Z',
+      end_time: '2023-06-30T23:00:00Z',
+      recurrence_rule: null,
+      household_id: 'household-1',
+      created_by: 'user-3',
+      created_at: '2023-06-16T11:30:00Z'
     }
   ],
   
   getEvents: (householdId, startDate, endDate) => {
-    const events = mockCalendar.events.filter(event => event.householdId === householdId);
+    const events = mockCalendar.events.filter(event => event.household_id === householdId);
     
     // Filter by date range if provided
     if (startDate && endDate) {
@@ -93,7 +63,7 @@ export const mockCalendar = {
       
       return Promise.resolve({
         data: events.filter(event => {
-          const eventStart = new Date(event.startTime).getTime();
+          const eventStart = new Date(event.start_time).getTime();
           return eventStart >= start && eventStart <= end;
         })
       });
@@ -108,18 +78,12 @@ export const mockCalendar = {
     const newEvent = {
       id: `event-${Date.now()}`,
       title: eventData.title,
-      startTime: eventData.startTime,
-      endTime: eventData.endTime,
-      recurrenceRule: eventData.recurrenceRule || null,
-      privacy: eventData.privacy || 'public',
-      createdAt: new Date().toISOString(),
-      householdId: eventData.householdId,
-      userId: eventData.userId,
-      creator: {
-        id: eventData.userId,
-        firstName: 'Demo',
-        lastName: 'User'
-      }
+      start_time: eventData.start_time,
+      end_time: eventData.end_time,
+      recurrence_rule: eventData.recurrence_rule || null,
+      household_id: eventData.household_id,
+      created_by: 'user-1',
+      created_at: new Date().toISOString()
     };
     
     return Promise.resolve({

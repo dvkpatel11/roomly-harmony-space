@@ -1,4 +1,6 @@
 
+import { Theme } from '../types';
+
 export const mockAuth = {
   currentUser: {
     id: 'user-1',
@@ -6,8 +8,10 @@ export const mockAuth = {
     role: 'member',
     preferences: {
       notifications: true,
-      theme: 'light'
+      theme: 'light',
+      active_household: 'household-1'
     },
+    households: ['household-1', 'household-2', 'household-3'],
     createdAt: '2023-01-15T08:00:00Z'
   },
   
@@ -16,9 +20,19 @@ export const mockAuth = {
     if (email === 'demo@example.com' && password === 'password') {
       return Promise.resolve({
         success: true,
-        token: 'mock-jwt-token',
-        user_id: 'user-1',
-        role: 'member'
+        access_token: 'mock-jwt-token',
+        refresh_token: 'mock-refresh-token',
+        user: {
+          id: 'user-1',
+          email: 'demo@example.com',
+          role: 'member',
+          preferences: {
+            notifications: true,
+            theme: 'light',
+            active_household: 'household-1'
+          },
+          households: ['household-1', 'household-2', 'household-3']
+        }
       });
     }
     
@@ -31,24 +45,54 @@ export const mockAuth = {
   
   register: (userData) => {
     return Promise.resolve({
-      success: true,
-      token: 'mock-jwt-token',
-      user_id: 'user-new'
+      message: 'User registered successfully',
+      access_token: 'mock-jwt-token',
+      refresh_token: 'mock-refresh-token',
+      user: {
+        id: 'user-new',
+        email: userData.email,
+        role: 'member',
+        preferences: userData.preferences || {
+          notifications: true,
+          theme: 'light',
+          active_household: null
+        },
+        households: []
+      }
     });
   },
   
-  getProfile: () => {
+  getCurrentUser: () => {
     return Promise.resolve({
-      data: {
-        id: 'user-1',
-        email: 'demo@example.com',
-        role: 'member',
-        preferences: {
-          notifications: true,
-          theme: 'light'
-        },
-        createdAt: '2023-01-15T08:00:00Z'
-      }
+      id: 'user-1',
+      email: 'demo@example.com',
+      role: 'member',
+      preferences: {
+        notifications: true,
+        theme: 'light',
+        active_household: 'household-1'
+      },
+      households: ['household-1', 'household-2', 'household-3']
     });
+  },
+  
+  updateProfile: (updates) => {
+    return Promise.resolve({
+      message: 'Profile updated successfully'
+    });
+  },
+  
+  refreshToken: () => {
+    return Promise.resolve({
+      access_token: 'new-mock-jwt-token'
+    });
+  },
+  
+  logout: () => {
+    return Promise.resolve();
+  },
+  
+  isAuthenticated: () => {
+    return true;
   }
 };
