@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { AnimatePresence } from "framer-motion";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 
 // Pages
 import Index from "./pages/Index";
@@ -19,6 +20,7 @@ import NotFound from "./pages/NotFound";
 // Layouts
 import Sidebar from "./components/layout/Sidebar";
 import MobileNav from "./components/layout/MobileNav";
+import Header from "./components/layout/Header";
 
 const queryClient = new QueryClient();
 
@@ -29,9 +31,12 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
   return (
     <div className="flex w-full min-h-screen">
       {!isMobile && <Sidebar />}
-      <main className="flex-1 max-w-full overflow-x-hidden">
-        {children}
-      </main>
+      <div className="flex-1 flex flex-col max-w-full overflow-x-hidden">
+        <Header />
+        <main className="flex-1 p-4 md:p-6">
+          {children}
+        </main>
+      </div>
       {isMobile && <MobileNav />}
     </div>
   );
@@ -98,13 +103,15 @@ const AnimatedRoutes = () => {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <AnimatedRoutes />
-      </BrowserRouter>
-    </TooltipProvider>
+    <ThemeProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AnimatedRoutes />
+        </BrowserRouter>
+      </TooltipProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 

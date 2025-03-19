@@ -1,5 +1,5 @@
-
 import type { Config } from "tailwindcss";
+import { colors } from "./src/lib/colors";
 
 export default {
 	darkMode: ["class"],
@@ -27,11 +27,13 @@ export default {
 				foreground: 'hsl(var(--foreground))',
 				primary: {
 					DEFAULT: 'hsl(var(--primary))',
-					foreground: 'hsl(var(--primary-foreground))'
+					foreground: 'hsl(var(--primary-foreground))',
+					...colors.primary,
 				},
 				secondary: {
 					DEFAULT: 'hsl(var(--secondary))',
-					foreground: 'hsl(var(--secondary-foreground))'
+					foreground: 'hsl(var(--secondary-foreground))',
+					...colors.secondary,
 				},
 				destructive: {
 					DEFAULT: 'hsl(var(--destructive))',
@@ -43,7 +45,8 @@ export default {
 				},
 				accent: {
 					DEFAULT: 'hsl(var(--accent))',
-					foreground: 'hsl(var(--accent-foreground))'
+					foreground: 'hsl(var(--accent-foreground))',
+					...colors.accent,
 				},
 				popover: {
 					DEFAULT: 'hsl(var(--popover))',
@@ -140,6 +143,24 @@ export default {
 			},
 			transitionTimingFunction: {
 				'bounce-in': 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
+			},
+			fontFamily: {
+				sans: ['Inter', 'sans-serif'],
+			},
+			spacing: {
+				// 4px increment system
+				'1': '4px',
+				'2': '8px',
+				'3': '12px',
+				'4': '16px',
+				'5': '20px',
+				'6': '24px',
+				'8': '32px',
+				'10': '40px',
+				'12': '48px',
+				'16': '64px',
+				'20': '80px',
+				'24': '96px',
 			},
 		}
 	},
