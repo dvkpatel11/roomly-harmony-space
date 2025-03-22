@@ -1,20 +1,20 @@
-
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import AnimatedLogo from '@/components/ui/AnimatedLogo';
-import { useToast } from '@/components/ui/use-toast';
-import PageTransition from '@/components/layout/PageTransition';
-import { mockAuth } from '@/mock/authMock';
+import PageTransition from "@/components/layout/PageTransition";
+import AnimatedLogo from "@/components/ui/AnimatedLogo";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/use-toast";
+import { getAuth } from "@/services/service-factory";
+import { LoginRequest } from "@/types/auth";
+import { motion } from "framer-motion";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
 const Login: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -22,28 +22,25 @@ const Login: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     try {
-      // Use our mock auth service instead of a timeout
-      const response = await mockAuth.login(email, password);
-      
-      if (response.success) {
-        toast({
-          title: "Logged in successfully",
-          description: "Welcome back to Roomly!",
-        });
-        navigate('/dashboard');
-      } else {
-        toast({
-          title: "Login failed",
-          description: response.error || "Please check your credentials and try again.",
-          variant: "destructive",
-        });
-      }
+      const loginData: LoginRequest = {
+        email,
+        password,
+      };
+
+      const response = await getAuth().login(loginData);
+
+      // If we get here, login was successful since the service throws on error
+      toast({
+        title: "Logged in successfully",
+        description: `Welcome back, ${response.user.first_name}!`,
+      });
+      navigate("/dashboard");
     } catch (error) {
       toast({
         title: "Login failed",
-        description: "An unexpected error occurred. Please try again.",
+        description: error instanceof Error ? error.message : "Please check your credentials and try again.",
         variant: "destructive",
       });
     } finally {
@@ -59,7 +56,7 @@ const Login: React.FC = () => {
             <AnimatedLogo size="md" />
           </Link>
         </div>
-        
+
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -69,9 +66,7 @@ const Login: React.FC = () => {
           <Card className="border-border/40 shadow-lg">
             <CardHeader className="space-y-1">
               <CardTitle className="text-2xl font-bold text-center">Welcome back</CardTitle>
-              <CardDescription className="text-center">
-                Enter your credentials to access your account
-              </CardDescription>
+              <CardDescription className="text-center">Enter your credentials to access your account</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -106,12 +101,14 @@ const Login: React.FC = () => {
                 </div>
                 <div className="flex items-center space-x-2">
                   <Checkbox id="remember" />
-                  <Label htmlFor="remember" className="text-sm font-normal">Remember me</Label>
+                  <Label htmlFor="remember" className="text-sm font-normal">
+                    Remember me
+                  </Label>
                 </div>
                 <Button type="submit" className="w-full h-11" disabled={isLoading}>
                   {isLoading ? "Logging in..." : "Log in"}
                 </Button>
-                
+
                 {/* Demo credentials hint */}
                 <div className="text-xs text-center text-muted-foreground">
                   <p>Demo credentials:</p>
@@ -122,7 +119,7 @@ const Login: React.FC = () => {
             </CardContent>
             <CardFooter className="flex flex-col space-y-4">
               <div className="text-sm text-muted-foreground text-center">
-                Don't have an account?{' '}
+                Don't have an account?{" "}
                 <Link to="/register" className="text-primary hover:underline">
                   Sign up
                 </Link>

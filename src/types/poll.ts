@@ -1,4 +1,3 @@
-
 export interface Poll {
   id: string;
   question: string;
@@ -17,7 +16,13 @@ export interface CreatePollRequest {
 
 export interface CreatePollResponse {
   message: string;
-  poll_id: string;
+  poll: {
+    id: string;
+    question: string;
+    options: string[];
+    expires_at: string | null;
+    created_by: string;
+  };
 }
 
 export interface VoteRequest {
@@ -26,6 +31,13 @@ export interface VoteRequest {
 
 export interface VoteResponse {
   message: string;
+  poll: {
+    id: string;
+    votes: Array<{
+      user_id: string;
+      selected_option: string;
+    }>;
+  };
 }
 
 export interface PollVoteCount {
@@ -37,10 +49,13 @@ export interface PollResponse {
   id: string;
   question: string;
   options: string[];
-  votes: PollVoteCount[];
-  created_by: string;
-  created_at: string;
   expires_at: string | null;
+  created_at: string;
+  created_by: string;
+  votes: Array<{
+    user_id: string;
+    selected_option: string;
+  }>;
 }
 
 export interface PollResultsResponse {
@@ -66,8 +81,8 @@ export interface PollService {
       page?: number;
       perPage?: number;
     }
-  ): Promise<PollResponse>;
-  getPollResults(pollId: string): Promise<PollResultsResponse>;  
+  ): Promise<PollResponse[]>;
+  getPollResults(pollId: string): Promise<PollResultsResponse>;
   vote(pollId: string, request: VoteRequest): Promise<VoteResponse>;
   deletePoll(pollId: string): Promise<void>;
   subscribeToPollUpdates(pollId: string, callback: (results: PollResultsResponse) => void): () => void;

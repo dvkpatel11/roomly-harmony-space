@@ -1,7 +1,6 @@
-
-import React from 'react';
-import { motion } from 'framer-motion';
-import { cn } from '@/lib/utils';
+import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
+import React from "react";
 
 type PageTransitionProps = {
   children: React.ReactNode;
@@ -33,12 +32,7 @@ const pageVariants = {
   },
 };
 
-const PageTransition: React.FC<PageTransitionProps> = ({
-  children,
-  className,
-  animate = true,
-  delay = 0,
-}) => {
+const PageTransition: React.FC<PageTransitionProps> = ({ children, className, animate = true, delay = 0 }) => {
   if (!animate) {
     return <div className={className}>{children}</div>;
   }
@@ -50,7 +44,7 @@ const PageTransition: React.FC<PageTransitionProps> = ({
       exit="exit"
       variants={pageVariants}
       transition={{ delay }}
-      className={cn('w-full', className)}
+      className={cn("w-full", className)}
     >
       {children}
     </motion.div>

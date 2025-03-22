@@ -1,4 +1,3 @@
-
 import { UserRole } from "./auth";
 
 export interface Household {
@@ -21,6 +20,7 @@ export interface HouseholdMember {
 
 export interface CreateHouseholdRequest {
   name: string;
+  description?: string;
 }
 
 export interface CreateHouseholdResponse {
@@ -29,11 +29,13 @@ export interface CreateHouseholdResponse {
     id: string;
     name: string;
     role: UserRole;
+    admin_id: string;
+    createdAt: string;
   };
 }
 
 export interface JoinHouseholdRequest {
-  code: string;
+  invitation_code: string;
 }
 
 export interface JoinHouseholdResponse {
@@ -41,17 +43,23 @@ export interface JoinHouseholdResponse {
   household: {
     id: string;
     name: string;
+    role: UserRole;
+    admin_id: string;
+    createdAt: string;
   };
 }
 
 export interface UpdateRoleRequest {
-  user_id: string;
   role: UserRole;
 }
 
 export interface HouseholdResponse {
-  households: Household[];
-  active_household_id?: string;
+  id: string;
+  name: string;
+  role: UserRole;
+  memberCount: number;
+  admin_id: string;
+  createdAt: string;
 }
 
 export interface HouseholdDetailsResponse {
@@ -60,7 +68,6 @@ export interface HouseholdDetailsResponse {
   members: HouseholdMember[];
   admin_id: string;
   createdAt: string;
-  invite_code?: string;
 }
 
 export interface HouseholdService {
@@ -69,13 +76,13 @@ export interface HouseholdService {
   members: HouseholdMember[];
   createHousehold(request: CreateHouseholdRequest): Promise<CreateHouseholdResponse>;
   joinHousehold(inviteCode: string): Promise<JoinHouseholdResponse>;
-  getHouseholds(): Promise<HouseholdResponse>;
+  getHouseholds(): Promise<HouseholdResponse[]>;
   getHouseholdDetails(householdId: string): Promise<HouseholdDetailsResponse>;
   getActiveHousehold(): Promise<HouseholdDetailsResponse | null>;
   setActiveHousehold(householdId: string): Promise<boolean>;
-  updateMemberRole(householdId: string, request: UpdateRoleRequest): Promise<void>;
+  updateMemberRole(householdId: string, memberId: string, request: UpdateRoleRequest): Promise<void>;
   leaveHousehold(householdId: string): Promise<void>;
-  removeMember(householdId: string, userId: string): Promise<void>;
+  removeMember(householdId: string, memberId: string): Promise<void>;
   updateHousehold(householdId: string, updates: { name: string }): Promise<void>;
-  generateInvitationCode(householdId: string): Promise<{ code: string; expires_at: string }>;
+  generateInvitationCode(householdId: string): Promise<{ invitation_code: string }>;
 }

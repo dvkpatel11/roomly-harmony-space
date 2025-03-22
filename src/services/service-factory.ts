@@ -1,54 +1,89 @@
+import { AuthService } from "@/types/auth";
+import { HouseholdService } from "@/types/household";
+import { BadgeService, CalendarService, ChatService, NotificationService, TaskService } from "@/types/services";
+import { ProdAuthService } from "./auth/auth.service";
+import { ProdBadgeService } from "./badge/badge.service";
+import { ProdCalendarService } from "./calendar/calendar.service";
+import { ProdChatService } from "./chat/chat.service";
+import { ProdHouseholdService } from "./household/household.service";
+import { ProdNotificationService } from "./notification/notification.service";
+import { ProdTaskService } from "./task/task.service";
 
-// This file is a placeholder for actual service implementations
-// In a real app, these would connect to your backend APIs
+// Singleton instances
+let authService: AuthService | null = null;
+let notificationService: NotificationService | null = null;
+let badgeService: BadgeService | null = null;
+let householdService: HouseholdService | null = null;
+let calendarService: CalendarService | null = null;
+let chatService: ChatService | null = null;
+let taskService: TaskService | null = null;
 
-import { 
-  AuthService, 
-  HouseholdService, 
-  TaskService,
-  NotificationService,
-  BadgeService,
-  PollService,
-  ChatService
-} from "@/types/index";
-import { TaskMockService } from "./task/task-mock.service";
+// Current household tracking
+let currentHouseholdId: string | null = null;
 
-// Auth service
-export const getAuthService = (): AuthService => {
-  throw new Error("Real auth service not implemented");
+export const setCurrentHouseholdId = (householdId: string | null) => {
+  if (currentHouseholdId !== householdId) {
+    currentHouseholdId = householdId;
+
+    // Update household ID in all services
+    if (notificationService) notificationService.setCurrentHousehold(householdId);
+    if (badgeService) badgeService.setCurrentHousehold(householdId);
+    if (calendarService) calendarService.setCurrentHousehold(householdId);
+    if (chatService) chatService.setCurrentHousehold(householdId);
+    if (taskService) taskService.setCurrentHousehold(householdId);
+  }
 };
 
-// Household service
-export const getHouseholdService = (): HouseholdService => {
-  throw new Error("Real household service not implemented");
+export const getAuth = (): AuthService => {
+  if (!authService) {
+    authService = new ProdAuthService();
+  }
+  return authService;
 };
 
-// Task service
-export const getTaskService = (): TaskService => {
-  return new TaskMockService();
+export const getNotifications = (): NotificationService => {
+  if (!notificationService) {
+    notificationService = new ProdNotificationService();
+    notificationService.setCurrentHousehold(currentHouseholdId);
+  }
+  return notificationService;
 };
 
-// Notification service
-export const getNotificationService = (): NotificationService => {
-  throw new Error("Real notification service not implemented");
+export const getBadges = (): BadgeService => {
+  if (!badgeService) {
+    badgeService = new ProdBadgeService();
+    badgeService.setCurrentHousehold(currentHouseholdId);
+  }
+  return badgeService;
 };
 
-// Badge service
-export const getBadgeService = (): BadgeService => {
-  throw new Error("Real badge service not implemented");
+export const getHouseholds = (): HouseholdService => {
+  if (!householdService) {
+    householdService = new ProdHouseholdService();
+  }
+  return householdService;
 };
 
-// Poll service
-export const getPollService = (): PollService => {
-  throw new Error("Real poll service not implemented");
+export const getCalendar = (): CalendarService => {
+  if (!calendarService) {
+    calendarService = new ProdCalendarService();
+    calendarService.setCurrentHousehold(currentHouseholdId);
+  }
+  return calendarService;
 };
 
-// Chat service
-export const getChatService = (): ChatService => {
-  throw new Error("Real chat service not implemented");
+export const getChat = (): ChatService => {
+  if (!chatService) {
+    chatService = new ProdChatService();
+    chatService.setCurrentHousehold(currentHouseholdId);
+  }
+  return chatService;
 };
 
-// Calendar service
-export const getCalendarService = () => {
-  throw new Error("Real calendar service not implemented");
+export const getTasks = (): TaskService => {
+  if (!taskService) {
+    taskService = new ProdTaskService();
+    taskService.setCurrentHousehold(currentHouseholdId);
+  }
+  return taskService;
 };

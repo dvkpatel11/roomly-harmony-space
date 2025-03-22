@@ -1,32 +1,31 @@
-
-import React, { useState } from 'react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Camera, Save, CheckCircle, X, User, Bell, Shield, Lock } from 'lucide-react';
-import { Switch } from '@/components/ui/switch';
-import PageTransition from '@/components/layout/PageTransition';
-import { useToast } from '@/components/ui/use-toast';
+import PageTransition from "@/components/layout/PageTransition";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/components/ui/use-toast";
+import { Bell, Camera, CheckCircle, Lock, Save, Shield, User, X } from "lucide-react";
+import React, { useState } from "react";
 
 const Profile: React.FC = () => {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState('account');
+  const [activeTab, setActiveTab] = useState("account");
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    name: 'Jane Doe',
-    email: 'jane@example.com',
-    phone: '(555) 123-4567',
-    bio: 'I enjoy keeping our apartment tidy and organized!',
+    name: "Jane Doe",
+    email: "jane@example.com",
+    phone: "(555) 123-4567",
+    bio: "I enjoy keeping our apartment tidy and organized!",
   });
-  
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
-  
+
   const handleSave = () => {
     setIsEditing(false);
     toast({
@@ -43,7 +42,7 @@ const Profile: React.FC = () => {
           <h1 className="text-3xl font-bold tracking-tight">Your Profile</h1>
           <p className="text-muted-foreground mt-1">Manage your account settings and preferences</p>
         </div>
-        
+
         {/* Profile Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid grid-cols-3 w-full sm:w-auto">
@@ -60,7 +59,7 @@ const Profile: React.FC = () => {
               <span className="hidden sm:inline">Security</span>
             </TabsTrigger>
           </TabsList>
-          
+
           {/* Account Tab */}
           <TabsContent value="account" className="space-y-6">
             {/* Profile Card */}
@@ -72,7 +71,9 @@ const Profile: React.FC = () => {
                     <CardDescription>Manage your personal information</CardDescription>
                   </div>
                   {!isEditing ? (
-                    <Button onClick={() => setIsEditing(true)} variant="outline">Edit Profile</Button>
+                    <Button onClick={() => setIsEditing(true)} variant="outline">
+                      Edit Profile
+                    </Button>
                   ) : (
                     <div className="flex gap-2">
                       <Button onClick={() => setIsEditing(false)} variant="ghost" size="icon">
@@ -93,11 +94,7 @@ const Profile: React.FC = () => {
                       <AvatarImage src="/placeholder.svg" />
                       <AvatarFallback>JD</AvatarFallback>
                     </Avatar>
-                    <Button 
-                      variant="secondary" 
-                      size="icon" 
-                      className="absolute bottom-0 right-0 h-8 w-8 rounded-full"
-                    >
+                    <Button variant="secondary" size="icon" className="absolute bottom-0 right-0 h-8 w-8 rounded-full">
                       <Camera size={14} />
                     </Button>
                   </div>
@@ -106,51 +103,51 @@ const Profile: React.FC = () => {
                     <p className="text-muted-foreground">Member since October 2023</p>
                   </div>
                 </div>
-                
+
                 {/* Form Fields */}
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="name">Full Name</Label>
-                      <Input 
-                        id="name" 
+                      <Input
+                        id="name"
                         name="name"
-                        value={formData.name} 
+                        value={formData.name}
                         onChange={handleInputChange}
-                        disabled={!isEditing} 
+                        disabled={!isEditing}
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
-                      <Input 
-                        id="email" 
+                      <Input
+                        id="email"
                         name="email"
-                        type="email" 
-                        value={formData.email} 
+                        type="email"
+                        value={formData.email}
                         onChange={handleInputChange}
-                        disabled={!isEditing} 
+                        disabled={!isEditing}
                       />
                     </div>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="phone">Phone Number</Label>
-                      <Input 
-                        id="phone" 
+                      <Input
+                        id="phone"
                         name="phone"
-                        value={formData.phone} 
+                        value={formData.phone}
                         onChange={handleInputChange}
-                        disabled={!isEditing} 
+                        disabled={!isEditing}
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="bio">Short Bio</Label>
-                      <Input 
-                        id="bio" 
+                      <Input
+                        id="bio"
                         name="bio"
-                        value={formData.bio} 
+                        value={formData.bio}
                         onChange={handleInputChange}
-                        disabled={!isEditing} 
+                        disabled={!isEditing}
                       />
                     </div>
                   </div>
@@ -160,7 +157,7 @@ const Profile: React.FC = () => {
                 <CardDescription>Last updated: July 26, 2023</CardDescription>
               </CardFooter>
             </Card>
-            
+
             {/* Household Memberships */}
             <Card>
               <CardHeader>
@@ -170,13 +167,10 @@ const Profile: React.FC = () => {
               <CardContent>
                 <div className="space-y-4">
                   {[
-                    { name: 'Main Apartment', role: 'Admin', members: 3, active: true },
-                    { name: 'Beach House', role: 'Member', members: 5, active: false },
+                    { name: "Main Apartment", role: "Admin", members: 3, active: true },
+                    { name: "Beach House", role: "Member", members: 5, active: false },
                   ].map((household, i) => (
-                    <div 
-                      key={i} 
-                      className="flex items-center justify-between p-4 rounded-lg border border-border"
-                    >
+                    <div key={i} className="flex items-center justify-between p-4 rounded-lg border border-border">
                       <div>
                         <div className="flex items-center gap-2">
                           <h4 className="font-medium">{household.name}</h4>
@@ -192,7 +186,7 @@ const Profile: React.FC = () => {
                         </p>
                       </div>
                       <Button variant="outline" size="sm">
-                        {household.active ? 'View' : 'Switch to'}
+                        {household.active ? "View" : "Switch to"}
                       </Button>
                     </div>
                   ))}
@@ -205,7 +199,7 @@ const Profile: React.FC = () => {
               </CardFooter>
             </Card>
           </TabsContent>
-          
+
           {/* Notifications Tab */}
           <TabsContent value="notifications" className="space-y-6">
             <Card>
@@ -215,11 +209,11 @@ const Profile: React.FC = () => {
               </CardHeader>
               <CardContent className="space-y-6">
                 {[
-                  { title: 'Task Reminders', description: 'Get notified about upcoming and overdue tasks' },
-                  { title: 'Task Assignments', description: 'Be notified when you are assigned to a task' },
-                  { title: 'Household Updates', description: 'Receive updates about your household' },
-                  { title: 'Calendar Events', description: 'Get reminders about upcoming events' },
-                  { title: 'Poll Notifications', description: 'Be notified about new polls and votes' },
+                  { title: "Task Reminders", description: "Get notified about upcoming and overdue tasks" },
+                  { title: "Task Assignments", description: "Be notified when you are assigned to a task" },
+                  { title: "Household Updates", description: "Receive updates about your household" },
+                  { title: "Calendar Events", description: "Get reminders about upcoming events" },
+                  { title: "Poll Notifications", description: "Be notified about new polls and votes" },
                 ].map((notification, i) => (
                   <div key={i} className="flex items-center justify-between">
                     <div className="space-y-0.5">
@@ -232,7 +226,7 @@ const Profile: React.FC = () => {
               </CardContent>
             </Card>
           </TabsContent>
-          
+
           {/* Security Tab */}
           <TabsContent value="security" className="space-y-6">
             <Card>
@@ -261,7 +255,7 @@ const Profile: React.FC = () => {
                 </Button>
               </CardFooter>
             </Card>
-            
+
             <Card>
               <CardHeader>
                 <CardTitle>Two-Factor Authentication</CardTitle>

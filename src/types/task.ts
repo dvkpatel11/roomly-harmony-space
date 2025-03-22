@@ -1,4 +1,3 @@
-
 export type TaskStatus = "pending" | "completed" | "overdue";
 
 export type TaskFrequency = "one_time" | "daily" | "weekly" | "monthly";
@@ -6,14 +5,14 @@ export type TaskFrequency = "one_time" | "daily" | "weekly" | "monthly";
 export interface Task {
   id: string;
   title: string;
-  household_id: string;
-  created_by: string;
-  assigned_to: string;
-  due_date: string | null;
-  completed: boolean;
-  completed_at: string | null;
+  description: string;
   frequency: TaskFrequency;
-  created_at: string;
+  due_date: string;
+  completed: boolean;
+  completed_at?: string;
+  assigned_to_name?: string;
+  created_by: string;
+  status: TaskStatus;
 }
 
 export interface CreateTaskRequest {
@@ -28,8 +27,38 @@ export interface CreateTaskRequest {
 
 export interface CreateTaskResponse {
   message: string;
-  task_id: string;
-  assigned_to: string;
+  task: {
+    id: string;
+    title: string;
+    frequency: TaskFrequency;
+    due_date: string;
+    assigned_to?: string;
+    created_by: string;
+  };
+}
+
+export interface TaskResponse {
+  tasks: Array<Task>;
+  total: number;
+  page: number;
+  per_page: number;
+}
+
+export interface CompleteTaskResponse {
+  message: string;
+  task: {
+    id: string;
+    completed: boolean;
+    completed_at: string;
+  };
+}
+
+export interface SwapTaskResponse {
+  message: string;
+  task: {
+    id: string;
+    assigned_to: string;
+  };
 }
 
 export interface UpdateTaskRequest {
@@ -38,42 +67,23 @@ export interface UpdateTaskRequest {
   assigned_to?: string;
 }
 
-export interface CompleteTaskResponse {
-  message: string;
-  streak: number;
-}
-
-export interface SwapTaskRequest {
-  new_assignee_id: string;
-}
-
-export interface SwapTaskResponse {
-  message: string;
-  new_assignee: string;
-}
-
-export interface TaskResponse {
-  tasks: Task[];
-  total: number;
-  page: number;
-  per_page: number;
-}
-
-export interface TaskFilters {
-  status?: "all" | "completed" | "pending";
-  assignedTo?: string;
-  frequency?: TaskFrequency | "all";
-  page?: number;
-  per_page?: number;
-  include_completed?: boolean;
-}
-
 export interface TaskService {
+  tasks: Task[];
   createTask(householdId: string, request: CreateTaskRequest): Promise<CreateTaskResponse>;
-  updateTask(taskId: string, request: UpdateTaskRequest): Promise<void>;
-  getTasks(householdId: string, filters?: TaskFilters): Promise<TaskResponse>;
-  getUserTasks(userId: string): Promise<Task[]>;
-  completeTask(taskId: string): Promise<CompleteTaskResponse>;   
+  getTasks(
+    householdId: string,
+    params?: {
+      status?: string;
+      assignedTo?: string;
+      frequency?: string;
+      page?: number;
+      per_page?: number;
+      include_completed?: boolean;
+    }
+  ): Promise<TaskResponse>;
+  getUserTasks(userId: string): Promise<TaskResponse>;
+  completeTask(taskId: string): Promise<CompleteTaskResponse>;
+  swapTask(taskId: string, newAssigneeId: string): Promise<SwapTaskResponse>;
+  updateTask(taskId: string, updates: UpdateTaskRequest): Promise<void>;
   deleteTask(taskId: string): Promise<void>;
-  swapTask(taskId: string, request: SwapTaskRequest): Promise<SwapTaskResponse>;
 }

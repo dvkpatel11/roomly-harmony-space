@@ -1,12 +1,11 @@
-
-import React, { useState } from 'react';
-import PageTransition from '@/components/layout/PageTransition';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { EmptyState, LoadingOverlay, ShimmerCard } from '@/components/ui/loading-states';
-import { CheckCircle, Home, LayoutDashboard, ListChecks, Plus, Users } from 'lucide-react';
-import { getHouseholds, getTasks } from '@/services/service-provider';
-import { useToast } from '@/hooks/use-toast';
+import PageTransition from "@/components/layout/PageTransition";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState, LoadingOverlay, ShimmerCard } from "@/components/ui/loading-states";
+import { useToast } from "@/hooks/use-toast";
+import { getHouseholds, getTasks } from "@/services/service-factory";
+import { CheckCircle, Home, ListChecks, Plus, Users } from "lucide-react";
+import React, { useState } from "react";
 
 const Dashboard = () => {
   const { toast } = useToast();
@@ -23,29 +22,29 @@ const Dashboard = () => {
       try {
         const householdService = getHouseholds();
         const activeHousehold = await householdService.getActiveHousehold();
-        
+
         if (activeHousehold) {
           setCurrentHousehold(activeHousehold);
           setHouseholdMembers(activeHousehold.members || []);
         }
-        
+
         const householdsResponse = await householdService.getHouseholds();
         setHouseholdsList(householdsResponse.households);
-        
+
         // Load tasks after we have the household
         if (activeHousehold) {
           loadTasks(activeHousehold.id);
         }
       } catch (error) {
-        console.error('Error loading initial data:', error);
+        console.error("Error loading initial data:", error);
         toast({
-          title: 'Error',
-          description: 'Failed to load household data',
-          variant: 'destructive',
+          title: "Error",
+          description: "Failed to load household data",
+          variant: "destructive",
         });
       }
     };
-    
+
     loadInitialData();
   }, [toast]);
 
@@ -57,11 +56,11 @@ const Dashboard = () => {
       const response = await taskService.getTasks(householdId, { status: "incomplete" });
       setTasks(response.tasks || []);
     } catch (error) {
-      console.error('Error loading tasks:', error);
+      console.error("Error loading tasks:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to load tasks',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to load tasks",
+        variant: "destructive",
       });
     } finally {
       setTasksLoading(false);
@@ -74,21 +73,21 @@ const Dashboard = () => {
       // Use task service to complete the task
       const taskService = getTasks();
       await taskService.completeTask(taskId);
-      
+
       // Update local state
-      setTasks(tasks.filter(task => task.id !== taskId));
-      
+      setTasks(tasks.filter((task) => task.id !== taskId));
+
       toast({
-        title: 'Task completed',
-        description: 'Your streak is growing!',
-        variant: 'default',
+        title: "Task completed",
+        description: "Your streak is growing!",
+        variant: "default",
       });
     } catch (error) {
-      console.error('Error completing task:', error);
+      console.error("Error completing task:", error);
       toast({
-        title: 'Error',
-        description: 'Failed to complete task',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to complete task",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -118,9 +117,7 @@ const Dashboard = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-            <p className="text-muted-foreground">
-              Welcome to {currentHousehold.name}. Here's what's happening today.
-            </p>
+            <p className="text-muted-foreground">Welcome to {currentHousehold.name}. Here's what's happening today.</p>
           </div>
           <Button>
             <Plus className="mr-2 h-4 w-4" />
@@ -137,9 +134,7 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{tasks.length}</div>
-              <p className="text-xs text-muted-foreground">
-                +2 since yesterday
-              </p>
+              <p className="text-xs text-muted-foreground">+2 since yesterday</p>
             </CardContent>
           </Card>
           <Card>
@@ -149,9 +144,7 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{householdMembers.length}</div>
-              <p className="text-xs text-muted-foreground">
-                +1 since last week
-              </p>
+              <p className="text-xs text-muted-foreground">+1 since last week</p>
             </CardContent>
           </Card>
           <Card>
@@ -161,9 +154,7 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">3</div>
-              <p className="text-xs text-muted-foreground">
-                Great progress!
-              </p>
+              <p className="text-xs text-muted-foreground">Great progress!</p>
             </CardContent>
           </Card>
           <Card>
@@ -173,9 +164,7 @@ const Dashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{householdsList.length}</div>
-              <p className="text-xs text-muted-foreground">
-                Across {householdsList.length} locations
-              </p>
+              <p className="text-xs text-muted-foreground">Across {householdsList.length} locations</p>
             </CardContent>
           </Card>
         </div>
@@ -185,31 +174,21 @@ const Dashboard = () => {
           <Card className="md:col-span-2">
             <CardHeader>
               <CardTitle>Your Tasks</CardTitle>
-              <CardDescription>
-                Tasks assigned to you in this household.
-              </CardDescription>
+              <CardDescription>Tasks assigned to you in this household.</CardDescription>
             </CardHeader>
             <LoadingOverlay loading={tasksLoading}>
               <CardContent className="px-2">
                 {tasks.length > 0 ? (
                   <div className="space-y-2">
                     {tasks.map((task) => (
-                      <div
-                        key={task.id}
-                        className="flex items-center justify-between rounded-lg border p-3"
-                      >
+                      <div key={task.id} className="flex items-center justify-between rounded-lg border p-3">
                         <div className="flex flex-col">
                           <span className="font-medium">{task.title}</span>
                           <span className="text-sm text-muted-foreground">
                             Due {new Date(task.due_date).toLocaleDateString()}
                           </span>
                         </div>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => completeTask(task.id)}
-                          disabled={loading}
-                        >
+                        <Button size="sm" variant="outline" onClick={() => completeTask(task.id)} disabled={loading}>
                           Complete
                         </Button>
                       </div>

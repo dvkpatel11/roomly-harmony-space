@@ -1,15 +1,14 @@
-
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Home, CheckSquare, Users, Calendar, User } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from "@/lib/utils";
+import { Calendar, CheckSquare, Home, User, Users } from "lucide-react";
+import React from "react";
+import { Link, useLocation } from "react-router-dom";
 
 const navItems = [
-  { name: 'Home', path: '/dashboard', icon: Home },
-  { name: 'Tasks', path: '/tasks', icon: CheckSquare },
-  { name: 'Household', path: '/household', icon: Users },
-  { name: 'Calendar', path: '/calendar', icon: Calendar },
-  { name: 'Profile', path: '/profile', icon: User },
+  { name: "Home", path: "/dashboard", icon: Home },
+  { name: "Tasks", path: "/tasks", icon: CheckSquare },
+  { name: "Household", path: "/household", icon: Users },
+  { name: "Calendar", path: "/calendar", icon: Calendar },
+  { name: "Profile", path: "/profile", icon: User },
 ];
 
 const MobileNav: React.FC = () => {
@@ -20,23 +19,21 @@ const MobileNav: React.FC = () => {
       <div className="grid grid-cols-5 h-16">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
-          
+
           return (
             <Link
               key={item.name}
               to={item.path}
               className={cn(
-                'flex flex-col items-center justify-center space-y-1 transition-all',
-                isActive ? 'text-primary' : 'text-muted-foreground'
+                "flex flex-col items-center justify-center space-y-1 transition-all",
+                isActive ? "text-primary" : "text-muted-foreground"
               )}
             >
               <item.icon size={isActive ? 20 : 18} className="transition-all" />
               <span className="text-xs font-medium">{item.name}</span>
-              
+
               {/* Active indicator dot */}
-              {isActive && (
-                <div className="absolute top-3 w-1 h-1 rounded-full bg-primary" />
-              )}
+              {isActive && <div className="absolute top-3 w-1 h-1 rounded-full bg-primary" />}
             </Link>
           );
         })}

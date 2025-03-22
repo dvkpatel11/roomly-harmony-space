@@ -1,35 +1,66 @@
-
-import React, { useState } from 'react';
-import { Bell, ChevronDown, House, Moon, Settings, Sun, User } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuLabel, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
-} from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useToast } from '@/hooks/use-toast';
-import { Badge } from '@/components/ui/badge';
-import { mockAuth } from '@/mock';
-import { mockNotifications } from '@/mock';
-import { useHousehold } from '@/contexts/HouseholdContext';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useHousehold } from "@/contexts/HouseholdContext";
+import { useToast } from "@/hooks/use-toast";
+import { getAuth, getBadges, getNotifications } from "@/services/service-factory";
+import { User as UserType } from "@/types/auth";
+import { Badge as BadgeType } from "@/types/badge";
+import { Award, Bell, ChevronDown, House, Moon, Settings, Sun, User } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
 const Header: React.FC = () => {
   const { toast } = useToast();
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [unreadCount, setUnreadCount] = useState<number>(3);
-  const user = mockAuth.currentUser;
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [userBadges, setUserBadges] = useState<BadgeType[]>([]);
+  const auth = getAuth();
+  const isAuthenticated = auth.isAuthenticated();
+  const [user, setUser] = useState<UserType | null>(null);
   const { households, currentHousehold, setCurrentHousehold } = useHousehold();
 
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    // Load user data
+    auth
+      .getCurrentUser()
+      .then((user) => {
+        if (user) setUser(user);
+      })
+      .catch(console.error);
+
+    // Load initial unread notifications count
+    getNotifications()
+      .getNotifications({ is_read: false })
+      .then((response) => {
+        setUnreadCount(response.notifications.length);
+      })
+      .catch(console.error);
+
+    // Load user badges
+    getBadges()
+      .getUserBadges()
+      .then((badges) => {
+        setUserBadges(badges);
+      })
+      .catch(console.error);
+  }, [isAuthenticated]);
+
   const toggleTheme = () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light';
+    const newTheme = theme === "light" ? "dark" : "light";
     setTheme(newTheme);
-    document.documentElement.classList.toggle('dark');
-    localStorage.setItem('theme', newTheme);
+    document.documentElement.classList.toggle("dark");
+    localStorage.setItem("theme", newTheme);
     toast({
       title: `${newTheme.charAt(0).toUpperCase() + newTheme.slice(1)} mode activated`,
       duration: 1500,
@@ -37,23 +68,50 @@ const Header: React.FC = () => {
   };
 
   const showNotifications = () => {
-    // Get unread notifications
-    mockNotifications.getNotifications({ isRead: false }).then(response => {
-      toast({
-        title: 'Notifications',
-        description: `You have ${response.notifications.length} unread notifications`,
+    getNotifications()
+      .getNotifications({ is_read: false })
+      .then((response) => {
+        toast({
+          title: "Notifications",
+          description: `You have ${response.notifications.length} unread notifications`,
+        });
       });
-    });
   };
 
   const handleHouseholdSelect = (household) => {
     setCurrentHousehold(household);
     toast({
-      title: 'Household Changed',
+      title: "Household Changed",
       description: `Switched to ${household.name}`,
       duration: 1500,
     });
   };
+
+  const handleSignOut = async () => {
+    try {
+      await auth.logout();
+      window.location.href = "/login";
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to sign out. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <header className="sticky top-0 z-10 flex h-16 w-full items-center border-b border-border bg-background px-4 md:px-6">
+        <div className="flex-1"></div>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={toggleTheme} className="rounded-full">
+            {theme === "light" ? <Moon size={20} /> : <Sun size={20} />}
+          </Button>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header className="sticky top-0 z-10 flex h-16 w-full items-center border-b border-border bg-background px-4 md:px-6">
@@ -63,16 +121,16 @@ const Header: React.FC = () => {
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="flex items-center gap-2">
               <House size={18} />
-              <span className="hidden md:inline">{currentHousehold ? currentHousehold.name : 'Select Household'}</span>
+              <span className="hidden md:inline">{currentHousehold ? currentHousehold.name : "Select Household"}</span>
               <ChevronDown size={16} className="opacity-70" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-56">
             <DropdownMenuLabel>Your Households</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {households.map(household => (
-              <DropdownMenuItem 
-                key={household.id} 
+            {households.map((household) => (
+              <DropdownMenuItem
+                key={household.id}
                 className="cursor-pointer"
                 onClick={() => handleHouseholdSelect(household)}
               >
@@ -80,7 +138,9 @@ const Header: React.FC = () => {
                   <House size={16} />
                   <span>{household.name}</span>
                   {currentHousehold && household.id === currentHousehold.id && (
-                    <Badge variant="outline" className="ml-auto">Current</Badge>
+                    <Badge variant="outline" className="ml-auto">
+                      Current
+                    </Badge>
                   )}
                 </div>
               </DropdownMenuItem>
@@ -102,8 +162,45 @@ const Header: React.FC = () => {
       <div className="flex items-center gap-2">
         {/* Theme Toggle */}
         <Button variant="ghost" size="icon" onClick={toggleTheme} className="rounded-full">
-          {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+          {theme === "light" ? <Moon size={20} /> : <Sun size={20} />}
         </Button>
+
+        {/* Badges */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" className="relative rounded-full">
+              <Award size={20} />
+              {userBadges.length > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
+                  {userBadges.length}
+                </span>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel>Your Badges</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {userBadges.length > 0 ? (
+              userBadges.map((badge) => (
+                <DropdownMenuItem key={badge.id} className="flex items-center gap-2">
+                  <Award size={16} className="text-primary" />
+                  <div className="flex flex-col">
+                    <span className="font-medium">{badge.name}</span>
+                    <span className="text-xs text-muted-foreground">{badge.description}</span>
+                  </div>
+                </DropdownMenuItem>
+              ))
+            ) : (
+              <DropdownMenuItem disabled>No badges earned yet</DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              <Link to="/badges" className="flex w-full items-center">
+                View All Badges
+              </Link>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Notifications */}
         <Button variant="ghost" size="icon" className="relative rounded-full" onClick={showNotifications}>
@@ -120,8 +217,8 @@ const Header: React.FC = () => {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-8 w-8 rounded-full">
               <Avatar className="h-8 w-8">
-                <AvatarImage src="/placeholder.svg" alt={user.email} />
-                <AvatarFallback>{user.email.substring(0, 2).toUpperCase()}</AvatarFallback>
+                <AvatarImage src="/placeholder.svg" alt={user?.email} />
+                <AvatarFallback>{user?.email.substring(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
@@ -141,7 +238,7 @@ const Header: React.FC = () => {
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="cursor-pointer text-destructive">
+            <DropdownMenuItem className="cursor-pointer text-destructive" onClick={handleSignOut}>
               Sign out
             </DropdownMenuItem>
           </DropdownMenuContent>

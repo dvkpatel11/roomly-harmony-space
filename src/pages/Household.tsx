@@ -1,24 +1,30 @@
-
-import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { FormGroup, FormInput, FormLabel } from "@/components/ui/form-components";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useHousehold } from '@/contexts/HouseholdContext';
-import { HouseholdMember } from '@/types/household';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Clipboard, Copy, Plus, Settings, UserPlus, Users } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { getHouseholds } from '@/services/service-provider';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { FormGroup, FormInput, FormLabel } from '@/components/ui/form-components';
+import { useHousehold } from "@/contexts/HouseholdContext";
+import { useToast } from "@/hooks/use-toast";
+import { getHouseholds } from "@/services/service-factory";
+import { HouseholdMember } from "@/types/household";
+import { Copy, Plus, Settings, UserPlus, Users } from "lucide-react";
+import React, { useState } from "react";
 
 const Household: React.FC = () => {
   const { currentHousehold, loading, error, refreshHouseholds } = useHousehold();
   const [members, setMembers] = useState<HouseholdMember[]>([]);
-  const [inviteCode, setInviteCode] = useState<string>('');
+  const [inviteCode, setInviteCode] = useState<string>("");
   const [showInviteDialog, setShowInviteDialog] = useState(false);
-  const [newHouseholdName, setNewHouseholdName] = useState('');
+  const [newHouseholdName, setNewHouseholdName] = useState("");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const { toast } = useToast();
 
@@ -26,36 +32,36 @@ const Household: React.FC = () => {
   React.useEffect(() => {
     const fetchMembers = async () => {
       if (!currentHousehold) return;
-      
+
       try {
         const details = await getHouseholds().getHouseholdDetails(currentHousehold.id);
         setMembers(details.members);
       } catch (err) {
-        console.error('Failed to fetch household details', err);
+        console.error("Failed to fetch household details", err);
         toast({
-          title: 'Error',
-          description: 'Failed to load household members',
-          variant: 'destructive',
+          title: "Error",
+          description: "Failed to load household members",
+          variant: "destructive",
         });
       }
     };
-    
+
     fetchMembers();
   }, [currentHousehold, toast]);
 
   const generateInviteCode = async () => {
     if (!currentHousehold) return;
-    
+
     try {
       const response = await getHouseholds().generateInvitationCode(currentHousehold.id);
       setInviteCode(response.code);
       setShowInviteDialog(true);
     } catch (err) {
-      console.error('Failed to generate invite code', err);
+      console.error("Failed to generate invite code", err);
       toast({
-        title: 'Error',
-        description: 'Failed to generate invitation code',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to generate invitation code",
+        variant: "destructive",
       });
     }
   };
@@ -63,36 +69,36 @@ const Household: React.FC = () => {
   const copyInviteCode = () => {
     navigator.clipboard.writeText(inviteCode);
     toast({
-      title: 'Copied!',
-      description: 'Invitation code copied to clipboard',
+      title: "Copied!",
+      description: "Invitation code copied to clipboard",
     });
   };
 
   const createHousehold = async () => {
     if (!newHouseholdName.trim()) {
       toast({
-        title: 'Error',
-        description: 'Please enter a household name',
-        variant: 'destructive',
+        title: "Error",
+        description: "Please enter a household name",
+        variant: "destructive",
       });
       return;
     }
-    
+
     try {
       await getHouseholds().createHousehold({ name: newHouseholdName });
       toast({
-        title: 'Success',
-        description: 'Household created successfully',
+        title: "Success",
+        description: "Household created successfully",
       });
-      setNewHouseholdName('');
+      setNewHouseholdName("");
       setShowCreateDialog(false);
       refreshHouseholds();
     } catch (err) {
-      console.error('Failed to create household', err);
+      console.error("Failed to create household", err);
       toast({
-        title: 'Error',
-        description: 'Failed to create household',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to create household",
+        variant: "destructive",
       });
     }
   };
@@ -133,8 +139,12 @@ const Household: React.FC = () => {
           <p className="text-muted-foreground">Manage your household members and settings</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowCreateDialog(true)}><Plus className="h-4 w-4 mr-2" /> New Household</Button>
-          <Button onClick={generateInviteCode}><UserPlus className="h-4 w-4 mr-2" /> Invite Member</Button>
+          <Button variant="outline" onClick={() => setShowCreateDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" /> New Household
+          </Button>
+          <Button onClick={generateInviteCode}>
+            <UserPlus className="h-4 w-4 mr-2" /> Invite Member
+          </Button>
         </div>
       </div>
 
@@ -143,7 +153,7 @@ const Household: React.FC = () => {
           <TabsTrigger value="members">Members</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="members" className="space-y-4 mt-4">
           <Card>
             <CardHeader>
@@ -168,8 +178,8 @@ const Household: React.FC = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant={member.role === 'admin' ? 'default' : 'outline'}>
-                        {member.role === 'admin' ? 'Admin' : 'Member'}
+                      <Badge variant={member.role === "admin" ? "default" : "outline"}>
+                        {member.role === "admin" ? "Admin" : "Member"}
                       </Badge>
                     </div>
                   </div>
@@ -184,7 +194,7 @@ const Household: React.FC = () => {
             </CardFooter>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="settings" className="mt-4">
           <Card>
             <CardHeader>
@@ -197,13 +207,13 @@ const Household: React.FC = () => {
             <CardContent className="space-y-4">
               <FormGroup>
                 <FormLabel htmlFor="household-name">Household Name</FormLabel>
-                <FormInput 
-                  id="household-name" 
-                  defaultValue={currentHousehold.name} 
+                <FormInput
+                  id="household-name"
+                  defaultValue={currentHousehold.name}
                   placeholder="Enter household name"
                 />
               </FormGroup>
-              {currentHousehold.role === 'admin' && (
+              {currentHousehold.role === "admin" && (
                 <div className="grid gap-2">
                   <Button variant="destructive" className="w-full">
                     Delete Household
@@ -220,9 +230,7 @@ const Household: React.FC = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Invitation Code</DialogTitle>
-            <DialogDescription>
-              Share this code with others to invite them to your household
-            </DialogDescription>
+            <DialogDescription>Share this code with others to invite them to your household</DialogDescription>
           </DialogHeader>
           <div className="flex items-center justify-between p-3 border rounded-md bg-muted/50">
             <code className="font-mono text-sm">{inviteCode}</code>
@@ -241,21 +249,23 @@ const Household: React.FC = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create New Household</DialogTitle>
-            <DialogDescription>
-              Create a new household to manage tasks and chores with others
-            </DialogDescription>
+            <DialogDescription>Create a new household to manage tasks and chores with others</DialogDescription>
           </DialogHeader>
           <FormGroup>
-            <FormLabel htmlFor="new-household-name" required>Household Name</FormLabel>
-            <FormInput 
-              id="new-household-name" 
+            <FormLabel htmlFor="new-household-name" required>
+              Household Name
+            </FormLabel>
+            <FormInput
+              id="new-household-name"
               value={newHouseholdName}
               onChange={(e) => setNewHouseholdName(e.target.value)}
               placeholder="Enter household name"
             />
           </FormGroup>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+              Cancel
+            </Button>
             <Button onClick={createHousehold}>Create Household</Button>
           </DialogFooter>
         </DialogContent>

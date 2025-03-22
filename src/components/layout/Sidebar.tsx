@@ -1,17 +1,23 @@
-
-import React from 'react';
-import { NavLink } from 'react-router-dom';
-import { HomeIcon, CalendarClockIcon, CheckSquareIcon, UsersIcon, BellIcon, SettingsIcon, BarChart3Icon } from 'lucide-react';
-import AnimatedLogo from '@/components/ui/AnimatedLogo';
+import AnimatedLogo from "@/components/ui/AnimatedLogo";
+import {
+  BarChart3Icon,
+  BellIcon,
+  CalendarClockIcon,
+  CheckSquareIcon,
+  HomeIcon,
+  SettingsIcon,
+  UsersIcon,
+} from "lucide-react";
+import { NavLink } from "react-router-dom";
 
 const navItems = [
-  { href: '/dashboard', icon: HomeIcon, label: 'Dashboard' },
-  { href: '/tasks', icon: CheckSquareIcon, label: 'Tasks' },
-  { href: '/household', icon: UsersIcon, label: 'Household' },
-  { href: '/calendar', icon: CalendarClockIcon, label: 'Calendar' },
-  { href: '/analytics', icon: BarChart3Icon, label: 'Analytics' },
-  { href: '/notifications', icon: BellIcon, label: 'Notifications' },
-  { href: '/settings', icon: SettingsIcon, label: 'Settings' },
+  { href: "/dashboard", icon: HomeIcon, label: "Dashboard" },
+  { href: "/tasks", icon: CheckSquareIcon, label: "Tasks" },
+  { href: "/household", icon: UsersIcon, label: "Household" },
+  { href: "/calendar", icon: CalendarClockIcon, label: "Calendar" },
+  { href: "/analytics", icon: BarChart3Icon, label: "Analytics" },
+  { href: "/notifications", icon: BellIcon, label: "Notifications" },
+  { href: "/settings", icon: SettingsIcon, label: "Settings" },
 ];
 
 const Sidebar = () => {
@@ -32,9 +38,7 @@ const Sidebar = () => {
                 to={item.href}
                 className={({ isActive }) =>
                   `flex items-center gap-3 rounded-lg px-3 py-2 transition-all ${
-                    isActive
-                      ? 'bg-accent text-accent-foreground'
-                      : 'hover:bg-accent/50 hover:text-accent-foreground'
+                    isActive ? "bg-accent text-accent-foreground" : "hover:bg-accent/50 hover:text-accent-foreground"
                   }`
                 }
               >

@@ -1,113 +1,136 @@
-
-import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
-import { AnimatePresence } from "framer-motion";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { ThemeProvider } from "@/contexts/ThemeContext";
+import { DataProvider } from "@/contexts/DataContext";
 import { HouseholdProvider } from "@/contexts/HouseholdContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { getAuth } from "@/services/service-factory";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AnimatePresence } from "framer-motion";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 // Pages
-import Index from "./pages/Index";
 import Login from "./pages/Auth/Login";
 import Register from "./pages/Auth/Register";
 import Dashboard from "./pages/Dashboard";
-import Tasks from "./pages/Tasks";
-import Profile from "./pages/Profile";
-import NotFound from "./pages/NotFound";
 import Household from "./pages/Household";
+import Index from "./pages/Index";
+import NotFound from "./pages/NotFound";
+import Profile from "./pages/Profile";
+import Tasks from "./pages/Tasks";
 
 // Layouts
-import Sidebar from "./components/layout/Sidebar";
-import MobileNav from "./components/layout/MobileNav";
 import Header from "./components/layout/Header";
+import MobileNav from "./components/layout/MobileNav";
+import Sidebar from "./components/layout/Sidebar";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 // Layout wrapper for authenticated routes
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const isMobile = useIsMobile();
+  const isAuthenticated = getAuth().isAuthenticated();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
 
   return (
     <div className="flex w-full min-h-screen">
       {!isMobile && <Sidebar />}
       <div className="flex-1 flex flex-col max-w-full overflow-x-hidden">
         <Header />
-        <main className="flex-1 p-4 md:p-6">
-          {children}
-        </main>
+        <main className="flex-1 p-4 md:p-6">{children}</main>
       </div>
       {isMobile && <MobileNav />}
     </div>
   );
 };
 
+// AuthWrapper to handle auth-dependent providers
+const AuthWrapper = ({ children }: { children: React.ReactNode }) => {
+  const isAuthenticated = getAuth().isAuthenticated();
+  const location = useLocation();
+  const isPublicPath = ["/", "/login", "/register"].includes(location.pathname);
+
+  // If trying to access protected route without auth, redirect to login
+  if (!isAuthenticated && !isPublicPath) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // If trying to access auth pages while authenticated, let the route handle it
+  if (isAuthenticated && isPublicPath) {
+    return children;
+  }
+
+  // For public routes when not authenticated
+  if (!isAuthenticated) {
+    return children;
+  }
+
+  // For authenticated routes, wrap with providers
+  return (
+    <HouseholdProvider>
+      <DataProvider>{children}</DataProvider>
+    </HouseholdProvider>
+  );
+};
+
 // Animation wrapper for route transitions
 const AnimatedRoutes = () => {
   const location = useLocation();
-  
-  // Mock authentication check (replace with real auth logic)
-  const isAuthenticated = true; // Set to false to test auth redirect
+  const isAuthenticated = getAuth().isAuthenticated();
 
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
+        {/* Public routes */}
         <Route path="/" element={<Index />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        
+        <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} />
+        <Route path="/register" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Register />} />
+
         {/* Protected routes */}
-        <Route 
-          path="/dashboard" 
+        <Route
+          path="/dashboard"
           element={
-            isAuthenticated ? (
-              <AppLayout>
-                <Dashboard />
-              </AppLayout>
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          } 
+            <AppLayout>
+              <Dashboard />
+            </AppLayout>
+          }
         />
-        <Route 
-          path="/tasks" 
+        <Route
+          path="/tasks"
           element={
-            isAuthenticated ? (
-              <AppLayout>
-                <Tasks />
-              </AppLayout>
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          } 
+            <AppLayout>
+              <Tasks />
+            </AppLayout>
+          }
         />
-        <Route 
-          path="/profile" 
+        <Route
+          path="/profile"
           element={
-            isAuthenticated ? (
-              <AppLayout>
-                <Profile />
-              </AppLayout>
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          } 
+            <AppLayout>
+              <Profile />
+            </AppLayout>
+          }
         />
-        <Route 
-          path="/household" 
+        <Route
+          path="/household"
           element={
-            isAuthenticated ? (
-              <AppLayout>
-                <Household />
-              </AppLayout>
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          } 
+            <AppLayout>
+              <Household />
+            </AppLayout>
+          }
         />
-        
+
         {/* Catch all route */}
         <Route path="*" element={<NotFound />} />
       </Routes>
@@ -118,15 +141,15 @@ const AnimatedRoutes = () => {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
-      <HouseholdProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
+      <TooltipProvider>
+        <BrowserRouter>
+          <AuthWrapper>
+            <Toaster />
+            <Sonner />
             <AnimatedRoutes />
-          </BrowserRouter>
-        </TooltipProvider>
-      </HouseholdProvider>
+          </AuthWrapper>
+        </BrowserRouter>
+      </TooltipProvider>
     </ThemeProvider>
   </QueryClientProvider>
 );

@@ -1,63 +1,53 @@
-
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import AnimatedLogo from '@/components/ui/AnimatedLogo';
-import { 
-  CheckCheck, 
-  Users, 
-  Calendar, 
-  MessageSquare, 
-  Bell, 
-  BarChart, 
-  Star, 
-  Lock
-} from 'lucide-react';
-import PageTransition from '@/components/layout/PageTransition';
-import { Card, CardContent } from '@/components/ui/card';
+import PageTransition from "@/components/layout/PageTransition";
+import AnimatedLogo from "@/components/ui/AnimatedLogo";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { motion } from "framer-motion";
+import { BarChart, Bell, Calendar, CheckCheck, Lock, MessageSquare, Star, Users } from "lucide-react";
+import React from "react";
+import { Link } from "react-router-dom";
 
 const features = [
-  { 
-    icon: CheckCheck, 
-    title: "Task Management", 
-    description: "Create, assign, and track household tasks with ease" 
+  {
+    icon: CheckCheck,
+    title: "Task Management",
+    description: "Create, assign, and track household tasks with ease",
   },
-  { 
-    icon: Users, 
-    title: "Household Management", 
-    description: "Organize members, roles, and responsibilities" 
+  {
+    icon: Users,
+    title: "Household Management",
+    description: "Organize members, roles, and responsibilities",
   },
-  { 
-    icon: Calendar, 
-    title: "Shared Calendar", 
-    description: "Coordinate events and schedules in one place" 
+  {
+    icon: Calendar,
+    title: "Shared Calendar",
+    description: "Coordinate events and schedules in one place",
   },
-  { 
-    icon: MessageSquare, 
-    title: "Group Communication", 
-    description: "Chat, announcements, and file sharing" 
+  {
+    icon: MessageSquare,
+    title: "Group Communication",
+    description: "Chat, announcements, and file sharing",
   },
-  { 
-    icon: Bell, 
-    title: "Smart Notifications", 
-    description: "Stay informed with customizable alerts" 
+  {
+    icon: Bell,
+    title: "Smart Notifications",
+    description: "Stay informed with customizable alerts",
   },
-  { 
-    icon: Star, 
-    title: "Gamification", 
-    description: "Earn badges and track task completion streaks" 
+  {
+    icon: Star,
+    title: "Gamification",
+    description: "Earn badges and track task completion streaks",
   },
-  { 
-    icon: BarChart, 
-    title: "Contribution Insights", 
-    description: "Visualize household participation with analytics" 
+  {
+    icon: BarChart,
+    title: "Contribution Insights",
+    description: "Visualize household participation with analytics",
   },
-  { 
-    icon: Lock, 
-    title: "Privacy Controls", 
-    description: "Manage what's shared and with whom" 
-  }
+  {
+    icon: Lock,
+    title: "Privacy Controls",
+    description: "Manage what's shared and with whom",
+  },
 ];
 
 const Index: React.FC = () => {
@@ -92,8 +82,8 @@ const Index: React.FC = () => {
               Bring <span className="text-primary">harmony</span> to your shared living space
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-              Roomly helps you and your housemates organize tasks, share responsibilities, 
-              and communicate effectively — all in one beautiful, intuitive app.
+              Roomly helps you and your housemates organize tasks, share responsibilities, and communicate effectively —
+              all in one beautiful, intuitive app.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" className="px-8" asChild>
@@ -112,7 +102,7 @@ const Index: React.FC = () => {
           <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
             Designed for roommates, families, and communal living spaces of all kinds
           </p>
-          
+
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {features.map((feature, i) => (
               <motion.div
@@ -138,7 +128,7 @@ const Index: React.FC = () => {
           <p className="text-center text-muted-foreground mb-12 max-w-2xl mx-auto">
             An intuitive interface designed to make household management a breeze
           </p>
-          
+
           <div className="grid md:grid-cols-3 gap-8">
             <Card className="overflow-hidden shadow-lg">
               <CardContent className="p-0">
@@ -151,7 +141,7 @@ const Index: React.FC = () => {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card className="overflow-hidden shadow-lg">
               <CardContent className="p-0">
                 <div className="bg-primary-900 p-3 text-white font-medium">Household Chat</div>
@@ -163,7 +153,7 @@ const Index: React.FC = () => {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card className="overflow-hidden shadow-lg">
               <CardContent className="p-0">
                 <div className="bg-primary-900 p-3 text-white font-medium">Shared Calendar</div>
@@ -180,36 +170,41 @@ const Index: React.FC = () => {
         {/* Testimonials/Social Proof */}
         <section className="container mx-auto px-4 py-20">
           <h2 className="text-3xl font-bold text-center mb-12">What people are saying</h2>
-          
+
           <div className="grid md:grid-cols-3 gap-8">
             {[
               {
-                quote: "Roomly has completely transformed how we manage our apartment. No more 'who did what' arguments!",
+                quote:
+                  "Roomly has completely transformed how we manage our apartment. No more 'who did what' arguments!",
                 name: "Alex K.",
-                role: "College Student"
+                role: "College Student",
               },
               {
-                quote: "The task rotation feature is brilliant. Everyone in our house now contributes equally without any drama.",
+                quote:
+                  "The task rotation feature is brilliant. Everyone in our house now contributes equally without any drama.",
                 name: "Sarah M.",
-                role: "Young Professional"
+                role: "Young Professional",
               },
               {
-                quote: "As a busy parent, the shared calendar keeps our family organized and in sync. Best household app out there!",
+                quote:
+                  "As a busy parent, the shared calendar keeps our family organized and in sync. Best household app out there!",
                 name: "Michael T.",
-                role: "Family Household"
-              }
+                role: "Family Household",
+              },
             ].map((testimonial, i) => (
-              <motion.div 
+              <motion.div
                 key={i}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 + (i * 0.1) }}
+                transition={{ duration: 0.5, delay: 0.2 + i * 0.1 }}
                 className="bg-card border border-border/40 p-6 rounded-xl shadow-sm"
               >
                 <div className="mb-4 text-primary">
-                  {Array(5).fill(0).map((_, i) => (
-                    <Star key={i} size={16} className="inline fill-primary" />
-                  ))}
+                  {Array(5)
+                    .fill(0)
+                    .map((_, i) => (
+                      <Star key={i} size={16} className="inline fill-primary" />
+                    ))}
                 </div>
                 <p className="mb-4 italic">"{testimonial.quote}"</p>
                 <div>
@@ -240,12 +235,20 @@ const Index: React.FC = () => {
             <div className="flex flex-col md:flex-row justify-between items-center">
               <div className="flex items-center mb-4 md:mb-0">
                 <AnimatedLogo size="sm" />
-                <span className="ml-4 text-muted-foreground">&copy; {new Date().getFullYear()} Roomly. All rights reserved.</span>
+                <span className="ml-4 text-muted-foreground">
+                  &copy; {new Date().getFullYear()} Roomly. All rights reserved.
+                </span>
               </div>
               <div className="flex gap-6">
-                <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">Terms</a>
-                <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">Privacy</a>
-                <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">Contact</a>
+                <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+                  Terms
+                </a>
+                <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+                  Privacy
+                </a>
+                <a href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+                  Contact
+                </a>
               </div>
             </div>
           </div>
