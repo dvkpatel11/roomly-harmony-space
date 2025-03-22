@@ -2,9 +2,18 @@ import { cn } from "@/lib/utils";
 import { NavLink } from "react-router-dom";
 import { navItems } from "./Sidebar";
 
-const MobileNav = () => {
+interface MobileNavProps {
+  className?: string;
+}
+
+const MobileNav: React.FC<MobileNavProps> = ({ className }) => {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-16 items-center justify-around border-t bg-background px-4 md:hidden">
+    <nav
+      className={cn(
+        "fixed bottom-0 left-0 right-0 z-50 flex h-16 items-center justify-around border-t bg-background px-4 md:hidden",
+        className
+      )}
+    >
       {navItems.map((item) => (
         <NavLink
           key={item.href}

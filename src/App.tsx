@@ -69,11 +69,11 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
   }
 
   return (
-    <div className="flex w-full min-h-screen">
-      {!isMobile && <Sidebar />}
-      <div className="flex-1 flex flex-col max-w-full overflow-x-hidden">
-        <Header />
-        <main className="flex-1 p-4 md:p-6">{children}</main>
+    <div className="flex h-screen overflow-hidden">
+      {!isMobile && <Sidebar className="flex-shrink-0" />}
+      <div className="flex flex-col flex-1 min-w-0">
+        <Header className="flex-shrink-0" />
+        <main className="flex-1 overflow-y-auto p-4 pb-20 md:p-6 md:pb-6">{children}</main>
       </div>
       {isMobile && <MobileNav />}
     </div>

@@ -1,3 +1,4 @@
+import HouseholdDangerZone from "@/components/household/HouseholdDangerZone";
 import { HouseholdMembers } from "@/components/household/HouseholdMembers";
 import { HouseholdOverview } from "@/components/household/HouseholdOverview";
 import { HouseholdSettings } from "@/components/household/HouseholdSettings";
@@ -70,6 +71,7 @@ const Household: React.FC = () => {
           <HouseholdOverview />
           <HouseholdMembers />
           <HouseholdSettings />
+          <HouseholdDangerZone />
         </div>
       </div>
     </PageTransition>

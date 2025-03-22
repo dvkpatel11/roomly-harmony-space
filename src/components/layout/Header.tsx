@@ -20,7 +20,11 @@ import { Award, Bell, ChevronDown, House, Moon, Plus, Settings, Sun, User } from
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-const Header: React.FC = () => {
+interface HeaderProps {
+  className?: string;
+}
+
+const Header: React.FC<HeaderProps> = ({ className }) => {
   const { toast } = useToast();
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [unreadCount, setUnreadCount] = useState<number>(0);
@@ -150,7 +154,9 @@ const Header: React.FC = () => {
 
   if (!isAuthenticated) {
     return (
-      <header className="sticky top-0 z-10 flex h-16 w-full items-center border-b border-border bg-background px-6 md:px-6">
+      <header
+        className={cn("flex h-16 w-full items-center border-b border-border bg-background px-6 md:px-6", className)}
+      >
         <div className="flex items-center gap-2">
           <AnimatedLogo className="h-6 w-6" showText={true} />
         </div>
@@ -165,7 +171,9 @@ const Header: React.FC = () => {
   }
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 w-full items-center border-b border-border bg-background px-6 md:px-6">
+    <header
+      className={cn("flex h-16 w-full items-center border-b border-border bg-background px-6 md:px-6", className)}
+    >
       {/* Logo - Only visible on mobile and tablet */}
       <div className="flex items-center gap-2 md:hidden mr-4">
         <AnimatedLogo className="h-6 w-6" showText={true} />
