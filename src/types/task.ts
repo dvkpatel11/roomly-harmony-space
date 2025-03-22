@@ -66,24 +66,3 @@ export interface UpdateTaskRequest {
   due_date?: string;
   assigned_to?: string;
 }
-
-export interface TaskService {
-  tasks: Task[];
-  createTask(householdId: string, request: CreateTaskRequest): Promise<CreateTaskResponse>;
-  getTasks(
-    householdId: string,
-    params?: {
-      status?: string;
-      assignedTo?: string;
-      frequency?: string;
-      page?: number;
-      per_page?: number;
-      include_completed?: boolean;
-    }
-  ): Promise<TaskResponse>;
-  getUserTasks(userId: string): Promise<TaskResponse>;
-  completeTask(taskId: string): Promise<CompleteTaskResponse>;
-  swapTask(taskId: string, newAssigneeId: string): Promise<SwapTaskResponse>;
-  updateTask(taskId: string, updates: UpdateTaskRequest): Promise<void>;
-  deleteTask(taskId: string): Promise<void>;
-}

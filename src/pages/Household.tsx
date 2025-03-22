@@ -54,7 +54,7 @@ const Household: React.FC = () => {
 
     try {
       const response = await getHouseholds().generateInvitationCode(currentHousehold.id);
-      setInviteCode(response.code);
+      setInviteCode(response.invitation_code);
       setShowInviteDialog(true);
     } catch (err) {
       console.error("Failed to generate invite code", err);

@@ -1,3 +1,4 @@
+import { TaskService } from "@/types/services";
 import {
   CompleteTaskResponse,
   CreateTaskRequest,
@@ -5,7 +6,6 @@ import {
   SwapTaskResponse,
   Task,
   TaskResponse,
-  TaskService,
   TaskStatus,
   UpdateTaskRequest,
 } from "../../types/task";

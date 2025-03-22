@@ -28,8 +28,8 @@ const Dashboard = () => {
           setHouseholdMembers(activeHousehold.members || []);
         }
 
-        const householdsResponse = await householdService.getHouseholds();
-        setHouseholdsList(householdsResponse.households);
+        const households = await householdService.getHouseholds();
+        setHouseholdsList(households);
 
         // Load tasks after we have the household
         if (activeHousehold) {
