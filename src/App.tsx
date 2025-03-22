@@ -1,8 +1,9 @@
+import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DataProvider } from "@/contexts/DataContext";
-import { HouseholdProvider } from "@/contexts/HouseholdContext";
+import { HouseholdProvider, useHousehold } from "@/contexts/HouseholdContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getAuth } from "@/services/service-factory";
@@ -19,6 +20,14 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
 import Tasks from "./pages/Tasks";
+
+// Household Pages
+import CreateHouseholdPage from "./pages/Household/Create";
+import HouseholdInvites from "./pages/Household/Invites";
+import HouseholdMembers from "./pages/Household/Members";
+import HouseholdRoles from "./pages/Household/Roles";
+import HouseholdSettings from "./pages/Household/Settings";
+import WelcomePage from "./pages/Household/Welcome";
 
 // Layouts
 import Header from "./components/layout/Header";
@@ -38,9 +47,25 @@ const queryClient = new QueryClient({
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const isMobile = useIsMobile();
   const isAuthenticated = getAuth().isAuthenticated();
+  const { currentHousehold, loading, requiresHousehold } = useHousehold();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+
+  // Show loading state while checking household status
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
+
+  // If we're on a route that requires household but none is selected,
+  // redirect to household management
+  if (requiresHousehold && !currentHousehold) {
+    return <Navigate to="/household" replace />;
   }
 
   return (
@@ -55,86 +80,134 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-// AuthWrapper to handle auth-dependent providers
-const AuthWrapper = ({ children }: { children: React.ReactNode }) => {
-  const isAuthenticated = getAuth().isAuthenticated();
+// AuthenticatedApp handles all routes that require authentication
+const AuthenticatedApp = () => {
+  const { isNewUser } = useHousehold();
   const location = useLocation();
-  const isPublicPath = ["/", "/login", "/register"].includes(location.pathname);
 
-  // If trying to access protected route without auth, redirect to login
-  if (!isAuthenticated && !isPublicPath) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+  // If authenticated and new user, redirect to welcome page
+  if (isNewUser && location.pathname !== "/household/welcome") {
+    return <Navigate to="/household/welcome" replace />;
   }
 
-  // If trying to access auth pages while authenticated, let the route handle it
-  if (isAuthenticated && isPublicPath) {
-    return children;
-  }
-
-  // For public routes when not authenticated
-  if (!isAuthenticated) {
-    return children;
-  }
-
-  // For authenticated routes, wrap with providers
   return (
-    <HouseholdProvider>
-      <DataProvider>{children}</DataProvider>
-    </HouseholdProvider>
+    <DataProvider>
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
+          {/* Protected routes */}
+          <Route
+            path="/dashboard"
+            element={
+              <AppLayout>
+                <Dashboard />
+              </AppLayout>
+            }
+          />
+          <Route
+            path="/tasks"
+            element={
+              <AppLayout>
+                <Tasks />
+              </AppLayout>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <AppLayout>
+                <Profile />
+              </AppLayout>
+            }
+          />
+
+          {/* Household Management Routes */}
+          <Route path="/household/welcome" element={<WelcomePage />} />
+          <Route
+            path="/household"
+            element={
+              <AppLayout>
+                <Household />
+              </AppLayout>
+            }
+          />
+          <Route path="/household/create" element={<CreateHouseholdPage />} />
+          <Route
+            path="/household/settings"
+            element={
+              <AppLayout>
+                <HouseholdSettings />
+              </AppLayout>
+            }
+          />
+          <Route
+            path="/household/members"
+            element={
+              <AppLayout>
+                <HouseholdMembers />
+              </AppLayout>
+            }
+          />
+          <Route
+            path="/household/invites"
+            element={
+              <AppLayout>
+                <HouseholdInvites />
+              </AppLayout>
+            }
+          />
+          <Route
+            path="/household/roles"
+            element={
+              <AppLayout>
+                <HouseholdRoles />
+              </AppLayout>
+            }
+          />
+
+          {/* Redirect to dashboard if accessing root while authenticated */}
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/login" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/register" element={<Navigate to="/household/welcome" replace />} />
+
+          {/* Catch all route */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </AnimatePresence>
+    </DataProvider>
   );
 };
 
-// Animation wrapper for route transitions
-const AnimatedRoutes = () => {
+// PublicApp handles all public routes
+const PublicApp = () => {
   const location = useLocation();
-  const isAuthenticated = getAuth().isAuthenticated();
 
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
-        {/* Public routes */}
         <Route path="/" element={<Index />} />
-        <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} />
-        <Route path="/register" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Register />} />
-
-        {/* Protected routes */}
-        <Route
-          path="/dashboard"
-          element={
-            <AppLayout>
-              <Dashboard />
-            </AppLayout>
-          }
-        />
-        <Route
-          path="/tasks"
-          element={
-            <AppLayout>
-              <Tasks />
-            </AppLayout>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <AppLayout>
-              <Profile />
-            </AppLayout>
-          }
-        />
-        <Route
-          path="/household"
-          element={
-            <AppLayout>
-              <Household />
-            </AppLayout>
-          }
-        />
-
-        {/* Catch all route */}
-        <Route path="*" element={<NotFound />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
     </AnimatePresence>
+  );
+};
+
+// Root component that handles authentication state
+const Root = () => {
+  const isAuthenticated = getAuth().isAuthenticated();
+  const location = useLocation();
+
+  // If not authenticated, show public routes
+  if (!isAuthenticated) {
+    return <PublicApp />;
+  }
+
+  // If authenticated, wrap with HouseholdProvider
+  return (
+    <HouseholdProvider>
+      <AuthenticatedApp />
+    </HouseholdProvider>
   );
 };
 
@@ -143,11 +216,9 @@ const App = () => (
     <ThemeProvider>
       <TooltipProvider>
         <BrowserRouter>
-          <AuthWrapper>
-            <Toaster />
-            <Sonner />
-            <AnimatedRoutes />
-          </AuthWrapper>
+          <Toaster />
+          <Sonner />
+          <Root />
         </BrowserRouter>
       </TooltipProvider>
     </ThemeProvider>

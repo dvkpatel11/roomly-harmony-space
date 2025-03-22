@@ -3,10 +3,12 @@ import { UserRole } from "./auth";
 export interface Household {
   id: string;
   name: string;
+  description?: string;
   role?: UserRole;
   memberCount?: number;
   admin_id: string;
   createdAt: string;
+  template_id?: string;
 }
 
 export interface HouseholdMember {
@@ -21,6 +23,7 @@ export interface HouseholdMember {
 export interface CreateHouseholdRequest {
   name: string;
   description?: string;
+  template_id?: string;
 }
 
 export interface CreateHouseholdResponse {
@@ -28,9 +31,11 @@ export interface CreateHouseholdResponse {
   household: {
     id: string;
     name: string;
+    description?: string;
     role: UserRole;
     admin_id: string;
     createdAt: string;
+    template_id?: string;
   };
 }
 
@@ -56,18 +61,22 @@ export interface UpdateRoleRequest {
 export interface HouseholdResponse {
   id: string;
   name: string;
+  description?: string;
   role: UserRole;
   memberCount: number;
   admin_id: string;
   createdAt: string;
+  template_id?: string;
 }
 
 export interface HouseholdDetailsResponse {
   id: string;
   name: string;
+  description?: string;
   members: HouseholdMember[];
   admin_id: string;
   createdAt: string;
+  template_id?: string;
 }
 
 export interface HouseholdService {
@@ -83,6 +92,7 @@ export interface HouseholdService {
   updateMemberRole(householdId: string, memberId: string, request: UpdateRoleRequest): Promise<void>;
   leaveHousehold(householdId: string): Promise<void>;
   removeMember(householdId: string, memberId: string): Promise<void>;
-  updateHousehold(householdId: string, updates: { name: string }): Promise<void>;
+  updateHousehold(householdId: string, updates: { name: string; description?: string }): Promise<void>;
   generateInvitationCode(householdId: string): Promise<{ invitation_code: string }>;
+  deleteHousehold(householdId: string): Promise<void>;
 }

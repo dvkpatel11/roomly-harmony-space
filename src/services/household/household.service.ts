@@ -10,6 +10,7 @@ import {
   UpdateRoleRequest,
 } from "../../types/household";
 import { BaseService } from "../base.service";
+import { setCurrentHouseholdId } from "../service-factory";
 
 export class ProdHouseholdService extends BaseService implements HouseholdService {
   private _householdsList: Household[] = [];
@@ -118,20 +119,24 @@ export class ProdHouseholdService extends BaseService implements HouseholdServic
   }
 
   async setActiveHousehold(householdId: string): Promise<boolean> {
-    // Update user preferences to set active household
-    await this.handleRequest(
-      () =>
-        fetch(`${this.apiUrl}/users/me/preferences`, {
-          method: "PATCH",
-          headers: this.getHeaders(),
-          body: JSON.stringify({
-            active_household: householdId,
-          }),
-        }),
-      "Active household updated"
-    );
+    try {
+      // Find the household in our list
+      const household = this._householdsList.find((h) => h.id === householdId);
+      if (!household) {
+        throw new Error("Selected household not found");
+      }
 
-    return true;
+      // Update current household
+      this._currentHousehold = household;
+
+      // Update current household ID in all services
+      setCurrentHouseholdId(householdId);
+
+      return true;
+    } catch (error) {
+      console.error("Failed to set active household:", error);
+      throw error;
+    }
   }
 
   async updateMemberRole(householdId: string, memberId: string, request: UpdateRoleRequest): Promise<void> {
@@ -200,5 +205,21 @@ export class ProdHouseholdService extends BaseService implements HouseholdServic
         }),
       "Invitation code generated successfully"
     );
+  }
+
+  async deleteHousehold(householdId: string): Promise<void> {
+    await this.handleRequest(
+      () =>
+        fetch(`${this.apiUrl}/households/${householdId}`, {
+          method: "DELETE",
+          headers: this.getHeaders(),
+        }),
+      "Household deleted successfully"
+    );
+
+    this._householdsList = this._householdsList.filter((h) => h.id !== householdId);
+    if (this._currentHousehold?.id === householdId) {
+      this._currentHousehold = null;
+    }
   }
 }

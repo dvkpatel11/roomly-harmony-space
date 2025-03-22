@@ -1,178 +1,207 @@
 import { useToast } from "@/hooks/use-toast";
-import { getAuth, getHouseholds, setCurrentHouseholdId } from "@/services/service-factory";
-import { Household, HouseholdResponse } from "@/types/index";
-import React, { createContext, ReactNode, useContext, useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { getHouseholds } from "@/services/service-factory";
+import { Household, HouseholdResponse } from "@/types/household";
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 
-interface HouseholdContextProps {
+interface HouseholdContextType {
   households: Household[];
   currentHousehold: Household | null;
   setCurrentHousehold: (household: Household) => Promise<void>;
   loading: boolean;
-  error: Error | null;
-  refreshHouseholds: () => Promise<void>;
   isHouseholdSwitching: boolean;
+  requiresHousehold: boolean;
+  isNewUser: boolean;
+  refreshHouseholds: () => Promise<HouseholdResponse[]>;
+  leaveHousehold: (householdId: string) => Promise<void>;
+  deleteHousehold: (householdId: string) => Promise<void>;
 }
 
-const HouseholdContext = createContext<HouseholdContextProps | undefined>(undefined);
+const HouseholdContext = createContext<HouseholdContextType | undefined>(undefined);
 
-// List of paths that don't require household context
-const PUBLIC_PATHS = ["/", "/login", "/register"];
-const HOUSEHOLD_MANAGEMENT_PATHS = ["/household"];
+// Routes that require a household to be selected
+const HOUSEHOLD_REQUIRED_ROUTES = ["/dashboard", "/tasks", "/calendar", "/chat"];
 
-export const HouseholdProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const HouseholdProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [households, setHouseholds] = useState<Household[]>([]);
-  const [currentHousehold, setCurrentHousehold] = useState<Household | null>(null);
+  const [currentHousehold, setCurrentHouseholdState] = useState<Household | null>(null);
   const [loading, setLoading] = useState(true);
   const [isHouseholdSwitching, setIsHouseholdSwitching] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  const { toast } = useToast();
+  const [isNewUser, setIsNewUser] = useState(false);
   const location = useLocation();
-  const navigate = useNavigate();
-  const auth = getAuth();
+  const { toast } = useToast();
 
-  // Update services when household changes
-  useEffect(() => {
-    setCurrentHouseholdId(currentHousehold?.id || null);
-  }, [currentHousehold?.id]);
+  const requiresHousehold = HOUSEHOLD_REQUIRED_ROUTES.some((route) => location.pathname.startsWith(route));
 
-  const fetchHouseholds = async () => {
-    // Skip if not authenticated
-    if (!auth.isAuthenticated()) {
-      setLoading(false);
-      setHouseholds([]);
-      setCurrentHousehold(null);
-      setError(null);
-      return;
-    }
-
+  const refreshHouseholds = async () => {
     try {
-      setLoading(true);
-      const response: HouseholdResponse[] = await getHouseholds().getHouseholds();
+      const response = await getHouseholds().getHouseholds();
       setHouseholds(response);
 
-      // Get active household from backend
-      const activeHousehold = await getHouseholds().getActiveHousehold();
-      if (activeHousehold) {
-        const household = {
-          id: activeHousehold.id,
-          name: activeHousehold.name,
-          admin_id: activeHousehold.admin_id,
-          createdAt: activeHousehold.createdAt,
-        };
-        setCurrentHousehold(household);
-        setCurrentHouseholdId(household.id);
-      } else if (response.length > 0) {
-        // If no active household, set first one as active
-        setCurrentHousehold(response[0]);
-        setCurrentHouseholdId(response[0].id);
-        await getHouseholds().setActiveHousehold(response[0].id);
+      // If this is a new user (no households), set isNewUser flag
+      if (response.length === 0) {
+        setIsNewUser(true);
       }
 
-      setError(null);
-    } catch (err) {
-      console.error("Failed to fetch households", err);
-      setError(err instanceof Error ? err : new Error("Failed to fetch households"));
+      // If current household is not in the list anymore, clear it
+      if (currentHousehold && !response.find((h) => h.id === currentHousehold.id)) {
+        setCurrentHouseholdState(null);
+      }
+
+      return response;
+    } catch (error) {
+      console.error("Failed to refresh households:", error);
       toast({
-        title: "Error",
-        description: "Failed to load households. Please try again.",
+        title: "Error refreshing households",
+        description: error instanceof Error ? error.message : "Failed to refresh households",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
+      return [];
     }
   };
 
-  // Refresh households when auth state changes
-  useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(async () => {
-      setLoading(true);
-      if (auth.isAuthenticated()) {
-        await fetchHouseholds();
-      } else {
-        setHouseholds([]);
-        setCurrentHousehold(null);
-      }
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  // Initial fetch
-  useEffect(() => {
-    fetchHouseholds();
-  }, []);
-
-  const changeCurrentHousehold = async (household: Household) => {
+  const setCurrentHousehold = async (household: Household) => {
+    setIsHouseholdSwitching(true);
     try {
-      setIsHouseholdSwitching(true);
       await getHouseholds().setActiveHousehold(household.id);
-      const details = await getHouseholds().getHouseholdDetails(household.id);
-      const newHousehold = {
-        id: details.id,
-        name: details.name,
-        admin_id: details.admin_id,
-        createdAt: details.createdAt,
-      };
-      setCurrentHousehold(newHousehold);
-      setCurrentHouseholdId(newHousehold.id);
+      setCurrentHouseholdState(household);
+
+      // Show role-specific message
       toast({
-        title: "Household Changed",
-        description: `Switched to ${household.name}`,
+        title: "Household Selected",
+        description: `Switched to ${household.name}. You are a ${household.role.toLowerCase()}.`,
       });
-    } catch (err) {
-      console.error("Failed to set active household", err);
+    } catch (error) {
       toast({
-        title: "Error",
-        description: "Failed to switch household. Please try again.",
+        title: "Error switching household",
+        description: error instanceof Error ? error.message : "Failed to switch household",
         variant: "destructive",
       });
-      throw err;
     } finally {
       setIsHouseholdSwitching(false);
     }
   };
 
-  // Handle routing based on auth and household state
+  const leaveHousehold = async (householdId: string) => {
+    try {
+      await getHouseholds().leaveHousehold(householdId);
+
+      // If we're leaving the current household, clear it
+      if (currentHousehold?.id === householdId) {
+        setCurrentHouseholdState(null);
+      }
+
+      await refreshHouseholds();
+
+      toast({
+        title: "Left Household",
+        description: "You have successfully left the household.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error leaving household",
+        description: error instanceof Error ? error.message : "Failed to leave household",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  const deleteHousehold = async (householdId: string) => {
+    try {
+      await getHouseholds().deleteHousehold(householdId);
+
+      // If we're deleting the current household, clear it
+      if (currentHousehold?.id === householdId) {
+        setCurrentHouseholdState(null);
+      }
+
+      await refreshHouseholds();
+
+      toast({
+        title: "Household Deleted",
+        description: "The household has been permanently deleted.",
+      });
+    } catch (error) {
+      toast({
+        title: "Error deleting household",
+        description: error instanceof Error ? error.message : "Failed to delete household",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  // Initial load of households
   useEffect(() => {
-    if (loading) return;
+    const loadInitialData = async () => {
+      setLoading(true);
+      try {
+        // First try to get the active household from the API
+        const activeHousehold = await getHouseholds().getActiveHousehold();
 
-    const isPublicPath = PUBLIC_PATHS.includes(location.pathname);
-    const isHouseholdManagementPath = HOUSEHOLD_MANAGEMENT_PATHS.includes(location.pathname);
+        // Then get all households
+        const householdList = await refreshHouseholds();
 
-    if (!auth.isAuthenticated()) {
-      if (!isPublicPath) {
-        navigate("/login", { state: { from: location.pathname } });
+        if (activeHousehold) {
+          // If we have an active household from the API, use it
+          const household = householdList.find((h) => h.id === activeHousehold.id);
+          if (household) {
+            await setCurrentHousehold(household);
+          }
+        } else {
+          // Try to get current household from local storage
+          const savedHouseholdId = localStorage.getItem("currentHouseholdId");
+          if (savedHouseholdId) {
+            const savedHousehold = householdList.find((h) => h.id === savedHouseholdId);
+            if (savedHousehold) {
+              await setCurrentHousehold(savedHousehold);
+            } else if (householdList.length > 0) {
+              // If saved household not found but we have households, select the first one
+              await setCurrentHousehold(householdList[0]);
+            }
+          } else if (householdList.length > 0 && !currentHousehold) {
+            // If no saved household but we have households and none selected, select the first one
+            await setCurrentHousehold(householdList[0]);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load initial household data:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load household data. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
       }
-      return;
-    }
+    };
 
-    // Handle authenticated users
-    if (isPublicPath && location.pathname !== "/") {
-      navigate("/dashboard");
-      return;
-    }
+    loadInitialData();
+  }, []);
 
-    if (!isHouseholdManagementPath && !isPublicPath) {
-      if (households.length === 0) {
-        navigate("/household/create");
-      } else if (!currentHousehold) {
-        navigate("/household/select");
-      }
+  // Save current household ID to local storage
+  useEffect(() => {
+    if (currentHousehold) {
+      localStorage.setItem("currentHouseholdId", currentHousehold.id);
+    } else {
+      localStorage.removeItem("currentHouseholdId");
     }
-  }, [location.pathname, households, currentHousehold, loading, auth.isAuthenticated()]);
+  }, [currentHousehold]);
 
   return (
     <HouseholdContext.Provider
       value={{
         households,
         currentHousehold,
-        setCurrentHousehold: changeCurrentHousehold,
+        setCurrentHousehold,
         loading,
-        error,
-        refreshHouseholds: fetchHouseholds,
         isHouseholdSwitching,
+        requiresHousehold,
+        isNewUser,
+        refreshHouseholds,
+        leaveHousehold,
+        deleteHousehold,
       }}
     >
       {children}

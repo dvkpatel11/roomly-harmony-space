@@ -1,56 +1,75 @@
 import AnimatedLogo from "@/components/ui/AnimatedLogo";
+import { cn } from "@/lib/utils";
 import {
-  BarChart3Icon,
-  BellIcon,
   CalendarClockIcon,
   CheckSquareIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   HomeIcon,
-  SettingsIcon,
+  MessageCircleIcon,
   UsersIcon,
 } from "lucide-react";
+import { useState } from "react";
 import { NavLink } from "react-router-dom";
 
-const navItems = [
-  { href: "/dashboard", icon: HomeIcon, label: "Dashboard" },
+export const navItems = [
+  { href: "/dashboard", icon: HomeIcon, label: "Home" },
   { href: "/tasks", icon: CheckSquareIcon, label: "Tasks" },
   { href: "/household", icon: UsersIcon, label: "Household" },
   { href: "/calendar", icon: CalendarClockIcon, label: "Calendar" },
-  { href: "/analytics", icon: BarChart3Icon, label: "Analytics" },
-  { href: "/notifications", icon: BellIcon, label: "Notifications" },
-  { href: "/settings", icon: SettingsIcon, label: "Settings" },
+  { href: "/chat", icon: MessageCircleIcon, label: "Chat" },
 ];
 
 const Sidebar = () => {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
   return (
-    <div className="hidden border-r lg:block lg:w-60 xl:w-72">
-      <div className="flex h-full max-h-screen flex-col gap-2">
-        <div className="flex h-14 items-center border-b px-4">
-          <NavLink to="/" className="flex items-center gap-2 font-semibold">
-            <AnimatedLogo className="h-6 w-6" />
-            <span>Roomies</span>
+    <div
+      className={cn(
+        "hidden md:flex flex-col border-r transition-all duration-300",
+        isCollapsed ? "md:w-[68px]" : "md:w-60 xl:w-72"
+      )}
+    >
+      <div className="flex h-full max-h-screen flex-col">
+        <div className="flex h-16 items-center border-b px-4">
+          <NavLink
+            to="/dashboard"
+            className={cn("flex items-center gap-2 font-semibold", isCollapsed ? "justify-center w-full" : "flex-1")}
+          >
+            <AnimatedLogo className="h-6 w-6" showText={!isCollapsed} />
           </NavLink>
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="hidden md:block p-2 rounded-lg hover:bg-primary/10 transition-colors"
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {isCollapsed ? <ChevronRightIcon className="h-4 w-4" /> : <ChevronLeftIcon className="h-4 w-4" />}
+          </button>
         </div>
         <div className="flex-1 overflow-auto py-2">
           <nav className="grid items-start px-2 text-sm font-medium">
-            {navItems.map((item, index) => (
+            {navItems.map((item) => (
               <NavLink
                 key={item.href}
                 to={item.href}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-lg px-3 py-2 transition-all ${
-                    isActive ? "bg-accent text-accent-foreground" : "hover:bg-accent/50 hover:text-accent-foreground"
-                  }`
+                  cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:bg-primary/10",
+                    isActive ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground",
+                    isCollapsed && "justify-center px-2"
+                  )
                 }
+                title={isCollapsed ? item.label : undefined}
               >
-                <item.icon className="h-4 w-4" />
-                {item.label}
+                <item.icon className="h-5 w-5" />
+                {!isCollapsed && <span>{item.label}</span>}
               </NavLink>
             ))}
           </nav>
         </div>
-        <div className="mt-auto border-t p-4">
-          <div className="flex h-5 items-center text-xs">
-            <span className="text-muted-foreground">v0.1.0</span>
+        <div className="border-t p-4">
+          <div className={cn("flex h-5 items-center text-xs text-muted-foreground", isCollapsed && "justify-center")}>
+            <span>v0.1.0</span>
           </div>
         </div>
       </div>
