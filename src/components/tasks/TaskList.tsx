@@ -19,7 +19,7 @@ export function TaskList({ tasks, onTaskComplete, onTaskDelete, onTaskUpdate, on
           task={task}
           onComplete={onTaskComplete}
           onDelete={onTaskDelete}
-          onUpdate={() => onTaskUpdate(task.id, {})}
+          onUpdate={onTaskUpdate}
           onSwap={onTaskSwap}
         />
       ))}

@@ -14,6 +14,11 @@ export interface Task {
   assigned_to: string | null;
   assigned_to_name?: string;
   household_id: string;
+  household?: {
+    id: string;
+    name: string;
+    admin_id: string;
+  };
   frequency: TaskFrequency;
 }
 

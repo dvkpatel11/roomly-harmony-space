@@ -3,21 +3,38 @@ import { CreateTaskDialog } from "@/components/tasks/CreateTaskDialog";
 import { TaskList } from "@/components/tasks/TaskList";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useHousehold } from "@/contexts/HouseholdContext";
 import { useTasks } from "@/hooks/use-tasks";
 import { TaskFrequency, TaskStatus } from "@/types/task";
-import { CheckCheck, Plus } from "lucide-react";
+import { CheckCheck, Plus, Search } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 
 const Tasks: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedTab, setSelectedTab] = useState<"all" | "active" | "completed">("all");
-  const [frequency, setFrequency] = useState<TaskFrequency | "all">("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const { currentHousehold } = useHousehold();
+
+  // Get tab and frequency from URL params or default values
+  const selectedTab = (searchParams.get("tab") as "all" | "active" | "completed") || "all";
+  const frequency = (searchParams.get("frequency") as TaskFrequency | "all") || "all";
+
+  // Update URL params when tab changes
+  const handleTabChange = (value: string) => {
+    searchParams.set("tab", value);
+    setSearchParams(searchParams);
+  };
+
+  // Update URL params when frequency changes
+  const handleFrequencyChange = (value: TaskFrequency | "all") => {
+    searchParams.set("frequency", value);
+    setSearchParams(searchParams);
+  };
 
   // Convert UI status to API status
   const getApiStatus = useCallback((uiStatus: "all" | "active" | "completed"): TaskStatus | undefined => {
@@ -63,11 +80,6 @@ const Tasks: React.FC = () => {
     // TODO: Add debounced API call for search
   };
 
-  // Handle frequency change
-  const handleFrequencyChange = (value: TaskFrequency | "all") => {
-    setFrequency(value);
-  };
-
   // Memoize task handlers to prevent unnecessary re-renders
   const taskHandlers = useMemo(
     () => ({
@@ -97,19 +109,10 @@ const Tasks: React.FC = () => {
 
         {/* Filters and Search */}
         <div className="flex flex-col sm:flex-row gap-4">
-          {/* <div className="relative w-full sm:w-80">
+          <div className="relative w-full sm:w-80">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Search tasks..." className="pl-9" value={searchQuery} onChange={handleSearchChange} />
-          </div> */}
-
-          {/* Task Tabs */}
-          <Tabs defaultValue="all" onValueChange={(value) => setSelectedTab(value as "all" | "active" | "completed")}>
-            <TabsList>
-              <TabsTrigger value="all">All Tasks</TabsTrigger>
-              <TabsTrigger value="active">Active</TabsTrigger>
-              <TabsTrigger value="completed">Completed</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          </div>
 
           <div className="flex gap-2 ml-auto">
             <Select value={frequency} onValueChange={handleFrequencyChange}>
@@ -126,6 +129,15 @@ const Tasks: React.FC = () => {
             </Select>
           </div>
         </div>
+
+        {/* Task Tabs */}
+        <Tabs value={selectedTab} onValueChange={handleTabChange}>
+          <TabsList>
+            <TabsTrigger value="all">All Tasks</TabsTrigger>
+            <TabsTrigger value="active">Active</TabsTrigger>
+            <TabsTrigger value="completed">Completed</TabsTrigger>
+          </TabsList>
+        </Tabs>
 
         {/* Task List */}
         <Card>

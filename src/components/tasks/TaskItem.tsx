@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { Task } from "@/types/task";
+import { Task, UpdateTaskRequest } from "@/types/task";
 import { formatDistanceToNow } from "date-fns";
 import { CheckCircle2, Clock, MoreVertical, RefreshCcw, UserPlus } from "lucide-react";
 import { useState } from "react";
@@ -14,7 +14,7 @@ interface TaskItemProps {
   task: Task;
   onComplete: (taskId: string) => void;
   onDelete: (taskId: string) => void;
-  onUpdate: () => void;
+  onUpdate: (taskId: string, updates: UpdateTaskRequest) => Promise<void>;
   onSwap: (taskId: string, newAssigneeId: string) => void;
   className?: string;
 }
@@ -62,31 +62,6 @@ export function TaskItem({ task, onComplete, onDelete, onUpdate, onSwap, classNa
   return (
     <Card className={cn("relative", className)}>
       <CardContent className="flex items-center gap-4 p-4">
-        {task.status !== "completed" && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    "shrink-0 hover:bg-green-50 hover:text-green-600 dark:hover:bg-green-950 transition-colors",
-                    getStatusColor()
-                  )}
-                  onClick={handleComplete}
-                >
-                  <CheckCircle2 className="h-5 w-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Mark as completed</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-        {task.status === "completed" && (
-          <div className="w-9 h-9 flex items-center justify-center">
-            <CheckCircle2 className="h-5 w-5 text-green-500" />
-          </div>
-        )}
         <div className="flex-grow min-w-0">
           <div className="flex items-center gap-2">
             <h3 className="font-medium truncate">{task.title}</h3>
@@ -108,20 +83,47 @@ export function TaskItem({ task, onComplete, onDelete, onUpdate, onSwap, classNa
             )}
           </div>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setIsUpdateDialogOpen(true)}>Edit</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setIsSwapDialogOpen(true)}>Swap Assignee</DropdownMenuItem>
-            <DropdownMenuItem onClick={handleDelete} className="text-red-500">
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-2">
+          {task.status !== "completed" && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      "shrink-0 hover:bg-green-50 hover:text-green-600 dark:hover:bg-green-950 transition-colors",
+                      getStatusColor()
+                    )}
+                    onClick={handleComplete}
+                  >
+                    <CheckCircle2 className="h-5 w-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Mark as completed</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+          {task.status === "completed" && (
+            <div className="w-9 h-9 flex items-center justify-center">
+              <CheckCircle2 className="h-5 w-5 text-green-500" />
+            </div>
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setIsUpdateDialogOpen(true)}>Edit</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setIsSwapDialogOpen(true)}>Swap Assignee</DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDelete} className="text-red-500">
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </CardContent>
 
       <SwapTaskDialog
@@ -130,7 +132,12 @@ export function TaskItem({ task, onComplete, onDelete, onUpdate, onSwap, classNa
         task={task}
         onSwapComplete={async (newAssigneeId: string) => {
           await onSwap(task.id, newAssigneeId);
-          onUpdate();
+          onUpdate(task.id, {
+            title: task.title,
+            description: task.description,
+            due_date: task.due_date,
+            frequency: task.frequency,
+          });
         }}
       />
 
@@ -138,8 +145,8 @@ export function TaskItem({ task, onComplete, onDelete, onUpdate, onSwap, classNa
         open={isUpdateDialogOpen}
         onOpenChange={setIsUpdateDialogOpen}
         task={task}
-        onTaskUpdated={async (taskId: string, updates: any) => {
-          await onUpdate();
+        onTaskUpdated={async (taskId: string, updates: UpdateTaskRequest) => {
+          await onUpdate(taskId, updates);
         }}
       />
     </Card>

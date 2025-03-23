@@ -1,4 +1,4 @@
-import { Task, UpdateTaskRequest } from "@/types/task";
+import { Task, TaskFrequency, UpdateTaskRequest } from "@/types/task";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CalendarIcon } from "lucide-react";
 import { useEffect } from "react";
@@ -16,7 +16,7 @@ interface UpdateTaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   task: Task;
-  onTaskUpdated: (taskId: string, updates: UpdateTaskRequest) => void;
+  onTaskUpdated: (taskId: string, updates: UpdateTaskRequest) => Promise<void>;
 }
 
 const updateTaskSchema = z.object({
@@ -36,8 +36,8 @@ export function UpdateTaskDialog({ open, onOpenChange, task, onTaskUpdated }: Up
     resolver: zodResolver(updateTaskSchema),
     defaultValues: {
       title: task.title,
-      description: task.description,
-      frequency: task.frequency,
+      description: task.description || "",
+      frequency: task.frequency === "once" ? "once" : task.frequency,
       due_date: task.due_date || undefined,
       is_recurring: false,
       interval_days: 7,
@@ -51,8 +51,8 @@ export function UpdateTaskDialog({ open, onOpenChange, task, onTaskUpdated }: Up
     if (open) {
       form.reset({
         title: task.title,
-        description: task.description,
-        frequency: task.frequency,
+        description: task.description || "",
+        frequency: task.frequency === "once" ? "once" : task.frequency,
         due_date: task.due_date || undefined,
         is_recurring: false,
         interval_days: 7,
@@ -62,7 +62,21 @@ export function UpdateTaskDialog({ open, onOpenChange, task, onTaskUpdated }: Up
 
   const onSubmit = async (data: UpdateTaskFormData) => {
     try {
-      await onTaskUpdated(task.id, data);
+      const updates: UpdateTaskRequest = {
+        title: data.title,
+        description: data.description || "",
+        frequency: data.frequency === "once" ? "once" : (data.frequency as TaskFrequency),
+        due_date: data.due_date || null,
+        is_recurring: data.is_recurring,
+      };
+
+      // Only include interval_days and end_date if task is recurring
+      if (data.is_recurring) {
+        updates.interval_days = data.interval_days;
+        updates.end_date = data.end_date || null;
+      }
+
+      await onTaskUpdated(task.id, updates);
       onOpenChange(false);
     } catch (err) {
       console.error("Failed to update task:", err);
