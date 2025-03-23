@@ -1,14 +1,15 @@
 import AnimatedLogo from "@/components/ui/AnimatedLogo";
+import { cn } from "@/lib/utils";
 import {
-  BarChart3Icon,
-  BellIcon,
   CalendarClockIcon,
   CheckSquareIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
   HomeIcon,
-  MessageSquareIcon,
-  SettingsIcon,
+  MessageCircleIcon,
   UsersIcon,
 } from "lucide-react";
+import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useHousehold } from "@/contexts/HouseholdContext";
 import { useMemo } from "react";
@@ -16,30 +17,52 @@ import { useMemo } from "react";
 const Sidebar = () => {
   const { currentHousehold } = useHousehold();
 
-  const navItems = useMemo(() => [
-    { href: "/dashboard", icon: HomeIcon, label: "Dashboard" },
-    { href: "/tasks", icon: CheckSquareIcon, label: "Tasks" },
-    { href: "/household", icon: UsersIcon, label: "Household" },
-    // Use current household ID for chat if available
-    { 
-      href: currentHousehold?.id ? `/chat/${currentHousehold.id}` : "/chat", 
-      icon: MessageSquareIcon, 
-      label: "Chat" 
-    },
-    { href: "/calendar", icon: CalendarClockIcon, label: "Calendar" },
-    { href: "/analytics", icon: BarChart3Icon, label: "Analytics" },
-    { href: "/notifications", icon: BellIcon, label: "Notifications" },
-    { href: "/settings", icon: SettingsIcon, label: "Settings" },
-  ], [currentHousehold]);
+export const navItems = [
+  { href: "/dashboard", icon: HomeIcon, label: "Home" },
+  { href: "/tasks", icon: CheckSquareIcon, label: "Tasks" },
+  { href: "/household", icon: UsersIcon, label: "Household" },
+  { href: "/calendar", icon: CalendarClockIcon, label: "Calendar" },
+  { href: "/chat", icon: MessageCircleIcon, label: "Chat" },
+];
+
+interface SidebarProps {
+  className?: string;
+  isCollapsed?: boolean;
+  onCollapsedChange?: (collapsed: boolean) => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ className, isCollapsed = false, onCollapsedChange }) => {
+  const [localCollapsed, setLocalCollapsed] = useState(isCollapsed);
+
+  const handleCollapse = () => {
+    const newState = !localCollapsed;
+    setLocalCollapsed(newState);
+    onCollapsedChange?.(newState);
+  };
 
   return (
-    <div className="hidden border-r lg:block lg:w-60 xl:w-72">
-      <div className="flex h-full max-h-screen flex-col gap-2">
-        <div className="flex h-14 items-center border-b px-4">
-          <NavLink to="/" className="flex items-center gap-2 font-semibold">
-            <AnimatedLogo className="h-6 w-6" />
-            <span>Roomies</span>
+    <div
+      className={cn(
+        "hidden md:flex flex-col border-r transition-all duration-300",
+        localCollapsed ? "md:w-[72px]" : "md:w-60 xl:w-60",
+        className
+      )}
+    >
+      <div className="flex h-full max-h-screen flex-col">
+        <div className="flex h-16 items-center border-b px-4">
+          <NavLink
+            to="/dashboard"
+            className={cn("flex items-center gap-2", localCollapsed ? "justify-center w-full" : "flex-1")}
+          >
+            <AnimatedLogo size={"md"} showText={!localCollapsed} />
           </NavLink>
+          <button
+            onClick={handleCollapse}
+            className="hidden md:block rounded-lg hover:bg-primary/10 transition-colors ml-2"
+            title={localCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {localCollapsed ? <ChevronRightIcon className="h-4 w-4" /> : <ChevronLeftIcon className="h-4 w-4" />}
+          </button>
         </div>
         <div className="flex-1 overflow-auto py-2">
           <nav className="grid items-start px-2 text-sm font-medium">
@@ -48,20 +71,25 @@ const Sidebar = () => {
                 key={item.href}
                 to={item.href}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 rounded-lg px-3 py-2 transition-all ${
-                    isActive ? "bg-accent text-accent-foreground" : "hover:bg-accent/50 hover:text-accent-foreground"
-                  }`
+                  cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2 mt-2 transition-all hover:bg-primary/10",
+                    isActive ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground",
+                    localCollapsed && "justify-center px-2"
+                  )
                 }
+                title={localCollapsed ? item.label : undefined}
               >
-                <item.icon className="h-4 w-4" />
-                {item.label}
+                <item.icon className="h-6 w-6" />
+                {!localCollapsed && <p className="text-muted-foreground">{item.label}</p>}
               </NavLink>
             ))}
           </nav>
         </div>
-        <div className="mt-auto border-t p-4">
-          <div className="flex h-5 items-center text-xs">
-            <span className="text-muted-foreground">v0.1.0</span>
+        <div className="border-t p-4">
+          <div
+            className={cn("flex h-5 items-center text-xs text-muted-foreground", localCollapsed && "justify-center")}
+          >
+            <span>v0.1.0</span>
           </div>
         </div>
       </div>

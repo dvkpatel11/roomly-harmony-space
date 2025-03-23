@@ -1,3 +1,4 @@
+import AnimatedLogo from "@/components/ui/AnimatedLogo";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,14 +12,19 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useHousehold } from "@/contexts/HouseholdContext";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 import { getAuth, getBadges, getNotifications } from "@/services/service-factory";
 import { User as UserType } from "@/types/auth";
 import { Badge as BadgeType } from "@/types/badge";
-import { Award, Bell, ChevronDown, House, Moon, Settings, Sun, User } from "lucide-react";
+import { Award, Bell, ChevronDown, House, Moon, Plus, Settings, Sun, User } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-const Header: React.FC = () => {
+interface HeaderProps {
+  className?: string;
+}
+
+const Header: React.FC<HeaderProps> = ({ className }) => {
   const { toast } = useToast();
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [unreadCount, setUnreadCount] = useState<number>(0);
@@ -26,52 +32,58 @@ const Header: React.FC = () => {
   const auth = getAuth();
   const isAuthenticated = auth.isAuthenticated();
   const [user, setUser] = useState<UserType | null>(null);
-  const { households, currentHousehold, setCurrentHousehold } = useHousehold();
+  const { households, currentHousehold, setCurrentHousehold, requiresHousehold } = useHousehold();
 
+  // Load user data - this doesn't depend on household
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    // Load user data
     auth
       .getCurrentUser()
       .then((user) => {
         if (user) setUser(user);
       })
       .catch(console.error);
+  }, [isAuthenticated]);
 
-    // Only fetch notifications and badges if a household is selected
-    if (currentHousehold) {
-      // Load initial unread notifications count
-      getNotifications()
-        .getNotifications({ is_read: false })
-        .then((response) => {
-          setUnreadCount(response.notifications.length);
-        })
-        .catch((error) => {
-          // Don't show error in console to avoid cluttering
-          if (error.message !== "No household selected") {
-            console.error("Failed to fetch notifications:", error);
-          }
-        });
-
-      // Load user badges
-      getBadges()
-        .getUserBadges()
-        .then((badges) => {
-          setUserBadges(badges);
-        })
-        .catch((error) => {
-          // Don't show error in console to avoid cluttering
-          if (error.message !== "No household selected") {
-            console.error("Failed to fetch badges:", error);
-          }
-        });
-    } else {
-      // Reset counts if no household is selected
+  // Load household-dependent data
+  useEffect(() => {
+    // Only fetch if we have a household and we're on a route that requires it
+    if (!isAuthenticated || !currentHousehold || !requiresHousehold) {
       setUnreadCount(0);
       setUserBadges([]);
+      return;
     }
-  }, [isAuthenticated, currentHousehold]);
+
+    // Load notifications
+    const fetchNotifications = async () => {
+      try {
+        const response = await getNotifications().getNotifications({ is_read: false });
+        setUnreadCount(response.notifications.length);
+      } catch (error) {
+        // Only show error if it's not the "No household selected" error
+        if (error instanceof Error && !error.message.includes("No household selected")) {
+          console.error("Failed to fetch notifications:", error);
+        }
+      }
+    };
+
+    // Load badges
+    const fetchBadges = async () => {
+      try {
+        const badges = await getBadges().getUserBadges();
+        setUserBadges(badges);
+      } catch (error) {
+        // Only show error if it's not the "No household selected" error
+        if (error instanceof Error && !error.message.includes("No household selected")) {
+          console.error("Failed to fetch badges:", error);
+        }
+      }
+    };
+
+    fetchNotifications();
+    fetchBadges();
+  }, [isAuthenticated, currentHousehold, requiresHousehold]);
 
   const toggleTheme = () => {
     const newTheme = theme === "light" ? "dark" : "light";
@@ -84,40 +96,47 @@ const Header: React.FC = () => {
     });
   };
 
-  const showNotifications = () => {
+  const showNotifications = async () => {
     if (!currentHousehold) {
       toast({
         title: "No Household Selected",
-        description: "Please select a household to view notifications",
-        variant: "destructive",
+        description: "Please select or create a household to view notifications.",
+        variant: "default",
       });
       return;
     }
-    
-    getNotifications()
-      .getNotifications({ is_read: false })
-      .then((response) => {
-        toast({
-          title: "Notifications",
-          description: `You have ${response.notifications.length} unread notifications`,
-        });
-      })
-      .catch((error) => {
+
+    try {
+      const response = await getNotifications().getNotifications({ is_read: false });
+      toast({
+        title: "Notifications",
+        description: `You have ${response.notifications.length} unread notifications`,
+      });
+    } catch (error) {
+      if (error instanceof Error && !error.message.includes("No household selected")) {
         toast({
           title: "Error",
-          description: error.message || "Failed to load notifications",
+          description: "Failed to fetch notifications. Please try again.",
           variant: "destructive",
         });
-      });
+      }
+    }
   };
 
-  const handleHouseholdSelect = (household) => {
-    setCurrentHousehold(household);
-    toast({
-      title: "Household Changed",
-      description: `Switched to ${household.name}`,
-      duration: 1500,
-    });
+  const handleHouseholdSelect = async (household) => {
+    try {
+      await setCurrentHousehold(household);
+      toast({
+        title: "Household Selected",
+        description: `Switched to ${household.name}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to switch household",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleSignOut = async () => {
@@ -135,7 +154,12 @@ const Header: React.FC = () => {
 
   if (!isAuthenticated) {
     return (
-      <header className="sticky top-0 z-10 flex h-16 w-full items-center border-b border-border bg-background px-4 md:px-6">
+      <header
+        className={cn("flex h-16 w-full items-center border-b border-border bg-background px-6 md:px-6", className)}
+      >
+        <div className="flex items-center gap-2">
+          <AnimatedLogo className="h-6 w-6" showText={true} />
+        </div>
         <div className="flex-1"></div>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" onClick={toggleTheme} className="rounded-full">
@@ -147,47 +171,84 @@ const Header: React.FC = () => {
   }
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 w-full items-center border-b border-border bg-background px-4 md:px-6">
-      {/* Left side - Household Selector */}
-      <div className="mr-4">
+    <header
+      className={cn("flex h-16 w-full items-center border-b border-border bg-background px-6 md:px-6", className)}
+    >
+      {/* Logo - Only visible on mobile and tablet */}
+      <div className="flex items-center gap-2 md:hidden mr-4">
+        <AnimatedLogo className="h-6 w-6" showText={true} />
+      </div>
+
+      {/* Household Selector */}
+      <div className={cn("flex items-center gap-4", !currentHousehold && "flex-1")}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="flex items-center gap-2 min-w-[160px] md:min-w-[200px] hover:bg-primary/10"
+            >
               <House size={18} />
-              <span className="hidden md:inline">{currentHousehold ? currentHousehold.name : "Select Household"}</span>
-              <ChevronDown size={16} className="opacity-70" />
+              <span className="flex-1 text-left truncate">
+                {currentHousehold ? currentHousehold.name : "Select Household"}
+              </span>
+              <ChevronDown size={16} className="opacity-70 flex-shrink-0" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-56">
+          <DropdownMenuContent align="start" className="w-[280px]">
             <DropdownMenuLabel>Your Households</DropdownMenuLabel>
             <DropdownMenuSeparator />
             {households.length > 0 ? (
-              households.map((household) => (
-                <DropdownMenuItem
-                  key={household.id}
-                  className="cursor-pointer"
-                  onClick={() => handleHouseholdSelect(household)}
-                >
-                  <div className="flex items-center gap-2">
-                    <House size={16} />
-                    <span>{household.name}</span>
-                    {currentHousehold && household.id === currentHousehold.id && (
-                      <Badge variant="outline" className="ml-auto">
-                        Current
-                      </Badge>
-                    )}
-                  </div>
-                </DropdownMenuItem>
-              ))
+              <>
+                {households.map((household) => (
+                  <DropdownMenuItem
+                    key={household.id}
+                    className="cursor-pointer hover:bg-primary/10"
+                    onClick={() => handleHouseholdSelect(household)}
+                  >
+                    <div className="flex items-center gap-2 w-full">
+                      <House size={16} className={household.role === "admin" ? "text-primary" : ""} />
+                      <div className="flex-1 min-w-0">
+                        <span className="block truncate">{household.name}</span>
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        {household.role === "admin" && (
+                          <Badge variant="outline" className="ml-2">
+                            Admin
+                          </Badge>
+                        )}
+                        {currentHousehold && household.id === currentHousehold.id && (
+                          <Badge variant="secondary">Current</Badge>
+                        )}
+                      </div>
+                    </div>
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+              </>
             ) : (
-              <DropdownMenuItem disabled>No households found</DropdownMenuItem>
+              <DropdownMenuItem disabled>No households yet</DropdownMenuItem>
             )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild className="cursor-pointer">
-              <Link to="/household" className="text-primary">
-                <span className="flex items-center w-full">+ Manage Households</span>
-              </Link>
-            </DropdownMenuItem>
+            <Link to="/household/create" className="w-full">
+              <DropdownMenuItem className="cursor-pointer text-primary hover:bg-primary/10">
+                <div className="flex items-center gap-2 w-full">
+                  <Plus size={16} />
+                  Create New Household
+                </div>
+              </DropdownMenuItem>
+            </Link>
+            {currentHousehold && (
+              <>
+                <DropdownMenuSeparator />
+                <Link to="/household" className="w-full">
+                  <DropdownMenuItem className="cursor-pointer hover:bg-primary/10">
+                    <div className="flex items-center gap-2 w-full">
+                      <Settings size={16} />
+                      Manage Household
+                    </div>
+                  </DropdownMenuItem>
+                </Link>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -198,15 +259,15 @@ const Header: React.FC = () => {
       {/* Right side - Actions */}
       <div className="flex items-center gap-2">
         {/* Theme Toggle */}
-        <Button variant="ghost" size="icon" onClick={toggleTheme} className="rounded-full">
+        <Button variant="ghost" size="icon" onClick={toggleTheme} className="rounded-full hover:bg-primary/10">
           {theme === "light" ? <Moon size={20} /> : <Sun size={20} />}
         </Button>
 
-        {/* Badges - Only show if household is selected */}
+        {/* Badges - Only show if we have a household */}
         {currentHousehold && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative rounded-full">
+              <Button variant="ghost" size="icon" className="relative rounded-full hover:bg-primary/10">
                 <Award size={20} />
                 {userBadges.length > 0 && (
                   <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
@@ -241,9 +302,14 @@ const Header: React.FC = () => {
           </DropdownMenu>
         )}
 
-        {/* Notifications - Only show if household is selected */}
+        {/* Notifications - Only show if we have a household */}
         {currentHousehold && (
-          <Button variant="ghost" size="icon" className="relative rounded-full" onClick={showNotifications}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="relative rounded-full hover:bg-primary/10"
+            onClick={showNotifications}
+          >
             <Bell size={20} />
             {unreadCount > 0 && (
               <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive text-xs font-medium text-white">
@@ -256,10 +322,10 @@ const Header: React.FC = () => {
         {/* User Menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+            <Button variant="ghost" className="relative h-8 w-8 rounded-full hover:bg-primary/10">
               <Avatar className="h-8 w-8">
                 <AvatarImage src="/placeholder.svg" alt={user?.email} />
-                <AvatarFallback>{user?.email ? user.email.substring(0, 2).toUpperCase() : "U"}</AvatarFallback>
+                <AvatarFallback>{user?.email?.substring(0, 2).toUpperCase()}</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>

@@ -15,7 +15,6 @@ export abstract class BaseService {
   private isHouseholdSpecific: boolean = true;
 
   constructor(isHouseholdSpecific: boolean = true) {
-    console.log("Env specified url", import.meta.env.VITE_API_URL);
     this.apiUrl = import.meta.env.VITE_API_URL || "http://example.com";
     this.cache = new Map();
     this.isHouseholdSpecific = isHouseholdSpecific;

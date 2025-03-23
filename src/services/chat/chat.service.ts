@@ -1,4 +1,3 @@
-import { CreatePollRequest, CreatePollResponse, PollResponse, VoteRequest, VoteResponse } from "@/types/poll";
 import { ChatService } from "@/types/services";
 import {
   ChatResponse,
@@ -11,18 +10,6 @@ import {
 import { BaseService } from "../base.service";
 
 export class ProdChatService extends BaseService implements ChatService {
-  onNewMessage(callback: (message: NewMessageEvent) => void): () => void {
-    throw new Error("Method not implemented.");
-  }
-  onUserJoined(callback: (event: UserJoinedEvent) => void): () => void {
-    throw new Error("Method not implemented.");
-  }
-  onUserOffline(callback: (event: UserOfflineEvent) => void): () => void {
-    throw new Error("Method not implemented.");
-  }
-  onError(callback: (event: ErrorEvent) => void): () => void {
-    throw new Error("Method not implemented.");
-  }
   private _messages: Message[] = [];
   private socket: WebSocket | null = null;
   private eventHandlers: Map<string, ((event: WebSocketEvent) => void)[]> = new Map();
@@ -45,38 +32,6 @@ export class ProdChatService extends BaseService implements ChatService {
 
     this._messages = [...response.messages];
     return response;
-  }
-
-  async createPoll(householdId: string, request: CreatePollRequest): Promise<CreatePollResponse> {
-    return this.handleRequest<CreatePollResponse>(
-      () =>
-        fetch(`${this.apiUrl}/households/${householdId}/polls`, {
-          method: "POST",
-          headers: this.getHeaders(),
-          body: JSON.stringify(request),
-        }),
-      "Poll created successfully"
-    );
-  }
-
-  async getPoll(pollId: string): Promise<PollResponse> {
-    return this.handleRequest<PollResponse>(() =>
-      fetch(`${this.apiUrl}/polls/${pollId}`, {
-        headers: this.getHeaders(),
-      })
-    );
-  }
-
-  async vote(pollId: string, request: VoteRequest): Promise<VoteResponse> {
-    return this.handleRequest<VoteResponse>(
-      () =>
-        fetch(`${this.apiUrl}/polls/${pollId}/vote`, {
-          method: "POST",
-          headers: this.getHeaders(),
-          body: JSON.stringify(request),
-        }),
-      "Vote recorded successfully"
-    );
   }
 
   connect(token: string): void {
@@ -193,5 +148,45 @@ export class ProdChatService extends BaseService implements ChatService {
       event,
       handlers.filter((h) => h !== handler)
     );
+  }
+
+  onNewMessage(callback: (message: NewMessageEvent) => void): () => void {
+    const handler = (event: WebSocketEvent) => {
+      if (event.type === "new_message") {
+        callback(event as NewMessageEvent);
+      }
+    };
+    this.on("new_message", handler);
+    return () => this.off("new_message", handler);
+  }
+
+  onUserJoined(callback: (event: UserJoinedEvent) => void): () => void {
+    const handler = (event: WebSocketEvent) => {
+      if (event.type === "user_joined") {
+        callback(event as UserJoinedEvent);
+      }
+    };
+    this.on("user_joined", handler);
+    return () => this.off("user_joined", handler);
+  }
+
+  onUserOffline(callback: (event: UserOfflineEvent) => void): () => void {
+    const handler = (event: WebSocketEvent) => {
+      if (event.type === "user_offline") {
+        callback(event as UserOfflineEvent);
+      }
+    };
+    this.on("user_offline", handler);
+    return () => this.off("user_offline", handler);
+  }
+
+  onError(callback: (event: ErrorEvent) => void): () => void {
+    const handler = (event: WebSocketEvent) => {
+      if (event.type === "error") {
+        callback(event as unknown as ErrorEvent);
+      }
+    };
+    this.on("error", handler);
+    return () => this.off("error", handler);
   }
 }

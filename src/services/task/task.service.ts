@@ -13,6 +13,7 @@ import { BaseService } from "../base.service";
 
 export class ProdTaskService extends BaseService implements TaskService {
   private _tasks: Task[] = [];
+  private _householdCache: Map<string, { id: string; name: string; admin_id: string }> = new Map();
 
   get tasks(): Task[] {
     return this._tasks;
@@ -58,7 +59,14 @@ export class ProdTaskService extends BaseService implements TaskService {
       })
     );
 
-    this._tasks = response.tasks;
+    // Store tasks with household data from backend
+    this._tasks = response.tasks.map((task) => {
+      if (task.household) {
+        this._householdCache.set(task.household_id, task.household);
+      }
+      return task;
+    });
+
     return response;
   }
 
@@ -69,7 +77,14 @@ export class ProdTaskService extends BaseService implements TaskService {
       })
     );
 
-    this._tasks = response.tasks;
+    // Store tasks with household data from backend
+    this._tasks = response.tasks.map((task) => {
+      if (task.household) {
+        this._householdCache.set(task.household_id, task.household);
+      }
+      return task;
+    });
+
     return response;
   }
 

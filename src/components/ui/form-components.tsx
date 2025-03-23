@@ -1,28 +1,19 @@
-
-import * as React from "react";
-import { cn } from "@/lib/utils";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import { AlertTriangle, CheckCircle, Info } from "lucide-react";
+import * as React from "react";
 
 // FormGroup
 interface FormGroupProps extends React.HTMLAttributes<HTMLDivElement> {
   className?: string;
 }
 
-const FormGroup = React.forwardRef<HTMLDivElement, FormGroupProps>(
-  ({ className, ...props }, ref) => {
-    return (
-      <div
-        ref={ref}
-        className={cn("space-y-2 mb-4", className)}
-        {...props}
-      />
-    );
-  }
-);
+const FormGroup = React.forwardRef<HTMLDivElement, FormGroupProps>(({ className, ...props }, ref) => {
+  return <div ref={ref} className={cn("space-y-2 mb-4", className)} {...props} />;
+});
 FormGroup.displayName = "FormGroup";
 
 // FormLabel
@@ -33,11 +24,7 @@ interface FormLabelProps extends React.ComponentProps<typeof Label> {
 const FormLabel = React.forwardRef<HTMLLabelElement, FormLabelProps>(
   ({ required, className, children, ...props }, ref) => {
     return (
-      <Label
-        ref={ref}
-        className={cn("block", className)}
-        {...props}
-      >
+      <Label ref={ref} className={cn("block", className)} {...props}>
         {children}
         {required && <span className="ml-1 text-destructive">*</span>}
       </Label>
@@ -51,21 +38,26 @@ interface FormInputProps extends React.ComponentProps<typeof Input> {
   error?: string;
   success?: boolean;
   helpText?: string;
+  icon?: React.ReactNode;
 }
 
 const FormInput = React.forwardRef<HTMLInputElement, FormInputProps>(
-  ({ error, success, helpText, className, ...props }, ref) => {
+  ({ error, success, helpText, icon, className, ...props }, ref) => {
     return (
       <div className="space-y-1">
-        <Input
-          ref={ref}
-          className={cn(
-            error && "border-destructive focus-visible:ring-destructive",
-            success && "border-accent focus-visible:ring-accent",
-            className
-          )}
-          {...props}
-        />
+        <div className="relative">
+          {icon && <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{icon}</div>}
+          <Input
+            ref={ref}
+            className={cn(
+              icon && "pl-10",
+              error && "border-destructive focus-visible:ring-destructive",
+              success && "border-accent focus-visible:ring-accent",
+              className
+            )}
+            {...props}
+          />
+        </div>
         {error && (
           <div className="flex items-center gap-1 text-xs text-destructive mt-1">
             <AlertTriangle className="h-3 w-3" />
@@ -145,14 +137,7 @@ const FormCheckbox = React.forwardRef<HTMLButtonElement, FormCheckboxProps>(
     return (
       <div className="space-y-1">
         <div className="flex items-center gap-2">
-          <Checkbox
-            ref={ref}
-            className={cn(
-              error && "border-destructive",
-              className
-            )}
-            {...props}
-          />
+          <Checkbox ref={ref} className={cn(error && "border-destructive", className)} {...props} />
           <label
             htmlFor={props.id}
             className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
@@ -172,10 +157,4 @@ const FormCheckbox = React.forwardRef<HTMLButtonElement, FormCheckboxProps>(
 );
 FormCheckbox.displayName = "FormCheckbox";
 
-export {
-  FormGroup,
-  FormLabel,
-  FormInput,
-  FormTextarea,
-  FormCheckbox,
-};
+export { FormCheckbox, FormGroup, FormInput, FormLabel, FormTextarea };

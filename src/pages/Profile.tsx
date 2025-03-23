@@ -36,15 +36,15 @@ const Profile: React.FC = () => {
 
   return (
     <PageTransition>
-      <div className="p-6 md:p-8 pb-20 md:pb-8 max-w-4xl mx-auto">
+      <div className="max-w-7xl mx-auto space-y-6">
         {/* Profile Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">Your Profile</h1>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Your Profile</h1>
           <p className="text-muted-foreground mt-1">Manage your account settings and preferences</p>
         </div>
 
         {/* Profile Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid grid-cols-3 w-full sm:w-auto">
             <TabsTrigger value="account" className="flex items-center gap-2">
               <User size={16} />
@@ -61,7 +61,7 @@ const Profile: React.FC = () => {
           </TabsList>
 
           {/* Account Tab */}
-          <TabsContent value="account" className="space-y-6">
+          <TabsContent value="account" className="space-y-4">
             {/* Profile Card */}
             <Card>
               <CardHeader>

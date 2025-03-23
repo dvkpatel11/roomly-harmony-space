@@ -10,6 +10,7 @@ import {
   UpdateRoleRequest,
 } from "../../types/household";
 import { BaseService } from "../base.service";
+import { setCurrentHouseholdId } from "../service-factory";
 
 export class ProdHouseholdService extends BaseService implements HouseholdService {
   private _householdsList: Household[] = [];
@@ -118,42 +119,22 @@ export class ProdHouseholdService extends BaseService implements HouseholdServic
 
   async setActiveHousehold(householdId: string): Promise<boolean> {
     try {
-      // First set it via the /households/active endpoint
-      await this.handleRequest(
-        () =>
-          fetch(`${this.apiUrl}/households/active/${householdId}`, {
-            method: "POST",
-            headers: this.getHeaders(),
-          }),
-        "Active household set"
-      );
-      
-      // Then update user preferences as fallback
-      await this.handleRequest(
-        () =>
-          fetch(`${this.apiUrl}/users/me/preferences`, {
-            method: "PATCH",
-            headers: this.getHeaders(),
-            body: JSON.stringify({
-              active_household: householdId,
-            }),
-          }),
-        "Active household updated in preferences"
-      );
-      
-      // Load the household details
-      const householdDetails = await this.getHouseholdDetails(householdId);
-      this._currentHousehold = {
-        id: householdDetails.id,
-        name: householdDetails.name,
-        admin_id: householdDetails.admin_id,
-        createdAt: householdDetails.createdAt,
-      };
-      
+      // Find the household in our list
+      const household = this._householdsList.find((h) => h.id === householdId);
+      if (!household) {
+        throw new Error("Selected household not found");
+      }
+
+      // Update current household
+      this._currentHousehold = household;
+
+      // Update current household ID in all services
+      setCurrentHouseholdId(householdId);
+
       return true;
     } catch (error) {
       console.error("Failed to set active household:", error);
-      return false;
+      throw error;
     }
   }
 
@@ -223,5 +204,21 @@ export class ProdHouseholdService extends BaseService implements HouseholdServic
         }),
       "Invitation code generated successfully"
     );
+  }
+
+  async deleteHousehold(householdId: string): Promise<void> {
+    await this.handleRequest(
+      () =>
+        fetch(`${this.apiUrl}/households/${householdId}`, {
+          method: "DELETE",
+          headers: this.getHeaders(),
+        }),
+      "Household deleted successfully"
+    );
+
+    this._householdsList = this._householdsList.filter((h) => h.id !== householdId);
+    if (this._currentHousehold?.id === householdId) {
+      this._currentHousehold = null;
+    }
   }
 }

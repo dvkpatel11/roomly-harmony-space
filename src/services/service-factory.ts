@@ -1,12 +1,20 @@
 import { AuthService } from "@/types/auth";
 import { HouseholdService } from "@/types/household";
-import { BadgeService, CalendarService, ChatService, NotificationService, TaskService } from "@/types/services";
+import {
+  BadgeService,
+  CalendarService,
+  ChatService,
+  NotificationService,
+  PollService,
+  TaskService,
+} from "@/types/services";
 import { ProdAuthService } from "./auth/auth.service";
 import { ProdBadgeService } from "./badge/badge.service";
 import { ProdCalendarService } from "./calendar/calendar.service";
 import { ProdChatService } from "./chat/chat.service";
 import { ProdHouseholdService } from "./household/household.service";
 import { ProdNotificationService } from "./notification/notification.service";
+import { ProdPollService } from "./poll/poll.service";
 import { ProdTaskService } from "./task/task.service";
 
 // Singleton instances
@@ -17,6 +25,7 @@ let householdService: HouseholdService | null = null;
 let calendarService: CalendarService | null = null;
 let chatService: ChatService | null = null;
 let taskService: TaskService | null = null;
+let pollService: PollService | null = null;
 
 // Current household tracking
 let currentHouseholdId: string | null = null;
@@ -31,6 +40,7 @@ export const setCurrentHouseholdId = (householdId: string | null) => {
     if (calendarService) calendarService.setCurrentHousehold(householdId);
     if (chatService) chatService.setCurrentHousehold(householdId);
     if (taskService) taskService.setCurrentHousehold(householdId);
+    if (pollService) pollService.setCurrentHousehold(householdId);
   }
 };
 
@@ -86,4 +96,12 @@ export const getTasks = (): TaskService => {
     taskService.setCurrentHousehold(currentHouseholdId);
   }
   return taskService;
+};
+
+export const getPolls = (): PollService => {
+  if (!pollService) {
+    pollService = new ProdPollService();
+    pollService.setCurrentHousehold(currentHouseholdId);
+  }
+  return pollService;
 };

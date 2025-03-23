@@ -1,11 +1,17 @@
+import { WebSocketEvent } from "./chat";
+
 export interface Poll {
   id: string;
   question: string;
-  options: string[];
+  options: Record<string, number>;
   expires_at: string | null;
   created_at: string;
   household_id: string;
   created_by: string;
+  user_vote?: string;
+  total_votes: number;
+  voters: Record<string, string>;
+  is_expired: boolean;
 }
 
 export interface CreatePollRequest {
@@ -16,74 +22,35 @@ export interface CreatePollRequest {
 
 export interface CreatePollResponse {
   message: string;
-  poll: {
-    id: string;
-    question: string;
-    options: string[];
-    expires_at: string | null;
-    created_by: string;
-  };
+  poll_id: string;
 }
 
 export interface VoteRequest {
-  option_index: number;
+  option: string;
 }
 
 export interface VoteResponse {
   message: string;
-  poll: {
-    id: string;
-    votes: Array<{
-      user_id: string;
-      selected_option: string;
-    }>;
-  };
+  poll_id: string;
+  option: string;
 }
 
-export interface PollVoteCount {
-  option_index: number;
-  count: number;
-}
+export interface PollResponse extends Poll {}
 
-export interface PollResponse {
-  id: string;
-  question: string;
-  options: string[];
-  expires_at: string | null;
-  created_at: string;
-  created_by: string;
-  votes: Array<{
-    user_id: string;
-    selected_option: string;
-  }>;
-}
-
-export interface PollResultsResponse {
+// WebSocket Events
+export interface NewPollEvent extends WebSocketEvent {
+  type: "new_poll";
   poll: Poll;
-  votes: {
-    option: string;
-    count: number;
-    percentage: number;
-    voters: Array<{
-      user_id: string;
-      email: string;
-    }>;
-  }[];
 }
 
-export interface PollService {
-  createPoll(householdId: string, request: CreatePollRequest): Promise<CreatePollResponse>;
-  getPoll(pollId: string): Promise<PollResponse>;
-  getPolls(
-    householdId: string,
-    params?: {
-      active?: boolean;
-      page?: number;
-      perPage?: number;
-    }
-  ): Promise<PollResponse[]>;
-  getPollResults(pollId: string): Promise<PollResultsResponse>;
-  vote(pollId: string, request: VoteRequest): Promise<VoteResponse>;
-  deletePoll(pollId: string): Promise<void>;
-  subscribeToPollUpdates(pollId: string, callback: (results: PollResultsResponse) => void): () => void;
+export interface PollUpdateEvent extends WebSocketEvent {
+  type: "poll_update";
+  poll_id: string;
+  options: Record<string, number>;
+  voter: string;
+}
+
+export interface PollDeletedEvent extends WebSocketEvent {
+  type: "poll_deleted";
+  poll_id: string;
 }

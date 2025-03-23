@@ -55,7 +55,7 @@ const Index: React.FC = () => {
     <PageTransition>
       <div className="min-h-screen bg-background">
         {/* Navigation */}
-        <header className="container mx-auto px-4 py-6 flex justify-between items-center">
+        <header className="container mx-auto px-6 py-6 flex justify-between items-center">
           <AnimatedLogo size="md" />
           <div className="flex gap-4">
             <Button variant="ghost" asChild>
