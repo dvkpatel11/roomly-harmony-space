@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from "react";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -5,14 +6,15 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { DataProvider } from "@/contexts/DataContext";
 import { HouseholdProvider, useHousehold } from "@/contexts/HouseholdContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { ChatThemeProvider } from "@/contexts/ChatThemeContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ChatProvider } from "@/contexts/ChatContext";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { getAuth } from "@/services/service-factory";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AnimatePresence } from "framer-motion";
-import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import ChatRoom from './components/Chat/ChatRoom';
+import { getAuth } from "@/services/service-factory";
 
 // Pages
 import Login from "./pages/Auth/Login";
@@ -47,7 +49,7 @@ const queryClient = new QueryClient({
   },
 });
 
-// Layout wrapper for authenticated routes
+// AppLayout provides the consistent layout (sidebar, etc) for authenticated pages
 const AppLayout = ({ children }: { children: React.ReactNode }) => {
   const isMobile = useIsMobile();
   const isAuthenticated = getAuth().isAuthenticated();
@@ -83,158 +85,83 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
+// Loading screen component
+const LoadingScreen = () => (
+  <div className="flex items-center justify-center min-h-screen">
+    <LoadingSpinner size="lg" />
+  </div>
+);
+
 // AuthenticatedApp handles all routes that require authentication
 const AuthenticatedApp = () => {
-  const { isNewUser, households, loading } = useHousehold();
+  const { households, loading: householdLoading } = useHousehold();
   const location = useLocation();
 
-  // Assuming you want to use the first household for the chat
-  const currentHousehold = households[0]; // Get the first household or handle accordingly
+  // Get the first household for the chat or handle accordingly
+  const currentHousehold = households[0]; 
 
   console.log("[AuthenticatedApp] Current state:", {
-    isNewUser,
     householdsCount: households.length,
-    loading,
+    loading: householdLoading,
     currentPath: location.pathname,
   });
 
   // Show loading state while checking household status
-  if (loading) {
-    console.log("[AuthenticatedApp] Loading state, showing spinner");
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
+  if (householdLoading) {
+    return <LoadingScreen />;
   }
 
-  // If authenticated and new user, redirect to welcome page
-  if (isNewUser && location.pathname !== "/household/welcome") {
-    console.log("[AuthenticatedApp] New user detected, redirecting to welcome page");
+  if (households.length === 0 && !householdLoading) {
+    // Redirect to the welcome screen to create a household
     return <Navigate to="/household/welcome" replace />;
   }
 
-  // If user has no households and not on create page, redirect to create
-  if (
-    households.length === 0 &&
-    !location.pathname.startsWith("/household/create") &&
-    !location.pathname.startsWith("/household/welcome")
-  ) {
-    console.log("[AuthenticatedApp] No households found, redirecting to create page");
-    return <Navigate to="/household/create" replace />;
-  }
+  console.log('[AuthenticatedApp] Proceeding with normal render');
+  console.log('[AuthenticatedApp] Current household:', currentHousehold);
+  console.log('[AuthenticatedApp] Loading state:', householdLoading);
 
-  // If user has households but is on welcome/create, redirect to dashboard
-  if (
-    households.length > 0 &&
-    (location.pathname === "/household/welcome" || location.pathname === "/household/create")
-  ) {
-    console.log("[AuthenticatedApp] Has households but on welcome/create, redirecting to dashboard");
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  console.log("[AuthenticatedApp] Proceeding with normal render");
-  console.log("[AuthenticatedApp] Current household:", currentHousehold);
-  console.log("[AuthenticatedApp] Loading state:", loading);
   return (
     <DataProvider>
-      <ChatProvider>
-        <AnimatePresence mode="sync">
-          <Routes location={location} key={location.pathname}>
-            {/* Protected routes */}
-            <Route
-              path="/dashboard"
-              element={
-                <AppLayout>
-                  <Dashboard />
-                </AppLayout>
-              }
-            />
-            <Route
-              path="/tasks"
-              element={
-                <AppLayout>
-                  <Tasks />
-                </AppLayout>
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <AppLayout>
-                  <Profile />
-                </AppLayout>
-              }
-            />
-
-            {/* Household Management Routes */}
-            <Route path="/household/welcome" element={<WelcomePage />} />
-            <Route
-              path="/household"
-              element={
-                <AppLayout>
-                  <Household />
-                </AppLayout>
-              }
-            />
-            <Route path="/household/create" element={<CreateHouseholdPage />} />
-            <Route
-              path="/household/settings"
-              element={
-                <AppLayout>
-                  <HouseholdSettings />
-                </AppLayout>
-              }
-            />
-            <Route
-              path="/household/members"
-              element={
-                <AppLayout>
-                  <HouseholdMembers />
-                </AppLayout>
-              }
-            />
-            <Route
-              path="/household/invites"
-              element={
-                <AppLayout>
-                  <HouseholdInvites />
-                </AppLayout>
-              }
-            />
-            <Route
-              path="/household/roles"
-              element={
-                <AppLayout>
-                  <HouseholdRoles />
-                </AppLayout>
-              }
-            />
-
-            {/* Redirect to dashboard if accessing root while authenticated */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/login" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/register" element={<Navigate to="/household/welcome" replace />} />
-
-            {/* Catch all route */}
-            <Route path="*" element={<NotFound />} />
-
-            <Route
-              path="/chat"
-              element={
-                <AppLayout>
-                  {currentHousehold && (
-                    <ChatRoom 
-                      householdId={currentHousehold.id} 
-                      householdName={currentHousehold.name} 
-                    />
-                  )}
-                </AppLayout>
-              }
-            />
-          </Routes>
-        </AnimatePresence>
-      </ChatProvider>
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
+          <Route
+            path="/dashboard"
+            element={
+              <AppLayout>
+                <Dashboard />
+              </AppLayout>
+            }
+          />
+          <Route path="/tasks" element={<AppLayout><Tasks /></AppLayout>} />
+          <Route path="/profile" element={<AppLayout><Profile /></AppLayout>} />
+          <Route path="/household" element={<AppLayout><Household /></AppLayout>} />
+          <Route path="/household/welcome" element={<WelcomePage />} />
+          <Route path="/household/create" element={<CreateHouseholdPage />} />
+          <Route path="/household/settings" element={<AppLayout><HouseholdSettings /></AppLayout>} />
+          <Route path="/household/members" element={<AppLayout><HouseholdMembers /></AppLayout>} />
+          <Route path="/household/invites" element={<AppLayout><HouseholdInvites /></AppLayout>} />
+          <Route path="/household/roles" element={<AppLayout><HouseholdRoles /></AppLayout>} />
+          
+          {/* Chat routes */}
+          <Route path="/chat/:householdId" element={<Chat />} />
+          <Route path="/chat" element={
+            <AppLayout>
+              {currentHousehold && (
+                <ChatRoom 
+                  householdId={currentHousehold.id} 
+                  householdName={currentHousehold.name} 
+                />
+              )}
+            </AppLayout>
+          } />
+          
+          {/* Default routes */}
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/login" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/register" element={<Navigate to="/household/welcome" replace />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </AnimatePresence>
     </DataProvider>
   );
 };
@@ -269,9 +196,11 @@ const Root = () => {
   return (
     <AuthProvider apiUrl={API_URL}>
       <HouseholdProvider>
-        <ChatProvider>
-          <AuthenticatedApp />
-        </ChatProvider>
+        <ChatThemeProvider>
+          <ChatProvider>
+            <AuthenticatedApp />
+          </ChatProvider>
+        </ChatThemeProvider>
       </HouseholdProvider>
     </AuthProvider>
   );

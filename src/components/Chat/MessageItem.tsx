@@ -19,13 +19,16 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useChatContext, Message } from '@/contexts/ChatContext';
 import { cn } from '@/lib/utils';
+import { ColorPreset } from '@/contexts/ChatThemeContext';
 
 interface MessageItemProps {
   message: Message;
   isCurrentUser: boolean;
+  compact?: boolean;
+  colorPreset?: ColorPreset;
 }
 
-const MessageItem: React.FC<MessageItemProps> = ({ message, isCurrentUser }) => {
+const MessageItem: React.FC<MessageItemProps> = ({ message, isCurrentUser, compact = false, colorPreset }) => {
   const { editMessage, deleteMessage } = useChatContext();
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(message.content);
@@ -58,9 +61,13 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, isCurrentUser }) => 
   return (
     <div className={cn(
       "flex items-start gap-3 group",
-      isCurrentUser ? "flex-row-reverse" : "flex-row"
+      isCurrentUser ? "flex-row-reverse" : "flex-row",
+      compact && "gap-2"
     )}>
-      <Avatar className="h-8 w-8">
+      <Avatar className={cn(
+        "h-8 w-8",
+        compact && "h-6 w-6"
+      )}>
         {message.sender_email ? (
           <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${message.sender_email}`} />
         ) : (
@@ -73,30 +80,46 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, isCurrentUser }) => 
         "max-w-[75%]",
         isCurrentUser ? "text-right" : "text-left"
       )}>
-        <div className="flex items-center gap-2 mb-1">
+        <div className={cn(
+          "flex items-center gap-2 mb-1",
+          compact && "mb-0.5 gap-1"
+        )}>
           <span className={cn(
             "text-sm font-medium",
-            isCurrentUser ? "ml-auto" : "mr-auto"
+            isCurrentUser ? "ml-auto" : "mr-auto",
+            compact && "text-xs"
           )}>
             {message.sender_email ? message.sender_email.split('@')[0] : 'Unknown User'}
           </span>
-          <span className="text-xs text-muted-foreground">
+          <span className={cn(
+            "text-xs text-muted-foreground",
+            compact && "text-[10px]"
+          )}>
             {formatTime(message.created_at)}
           </span>
           
           {message.edited_at && (
-            <span className="text-xs text-muted-foreground">(edited)</span>
+            <span className={cn(
+              "text-xs text-muted-foreground",
+              compact && "text-[10px]"
+            )}>(edited)</span>
           )}
         </div>
         
         <div className="relative">
           <Card className={cn(
             "p-3 inline-block break-words",
-            message.is_announcement && "bg-amber-50 border-amber-200 dark:bg-amber-950 dark:border-amber-800",
-            isCurrentUser ? "bg-primary text-primary-foreground" : ""
+            message.is_announcement && "bg-amber-50 border-amber-200 dark:bg-amber-950 dark:border-amber-800 text-amber-900 dark:text-amber-100",
+            !message.is_announcement && isCurrentUser && (colorPreset?.userMessageBg || "bg-primary text-primary-foreground"),
+            !message.is_announcement && !isCurrentUser && (colorPreset?.messageCard || ""),
+            !message.is_announcement && (colorPreset?.border || ""),
+            compact && "p-2 text-sm"
           )}>
             {message.is_announcement && (
-              <Badge className="mb-2" variant="outline">Announcement</Badge>
+              <Badge className={cn(
+                "mb-2 bg-amber-200 text-amber-900 hover:bg-amber-300 border-amber-300",
+                compact && "mb-1 text-xs py-0"
+              )}>Announcement</Badge>
             )}
             
             {isEditing ? (

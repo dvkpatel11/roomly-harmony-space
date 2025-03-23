@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,12 @@ import { ChatProvider } from '@/contexts/ChatContext';
 const Chat = () => {
   const { householdId } = useParams<{ householdId: string }>();
   const { token } = useAuth();
+  
+  // Memoize the ChatRoom to prevent unmounts when parent re-renders
+  const memoizedChatRoom = useMemo(() => {
+    if (!householdId) return null;
+    return <ChatRoom householdId={householdId} householdName="Household Chat" />;
+  }, [householdId]);
   
   if (!householdId) {
     return (
@@ -32,7 +38,7 @@ const Chat = () => {
   return (
     <ChatProvider>
       <div className="flex flex-col h-full">
-        <ChatRoom householdId={householdId} householdName="Household Chat" />
+        {memoizedChatRoom}
       </div>
     </ChatProvider>
   );

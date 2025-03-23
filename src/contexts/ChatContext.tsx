@@ -856,12 +856,34 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           // Update voters record if provided
           if (data.voters) {
             updatedPoll.voters = data.voters;
+          } else if (data.voter && data.option) {
+            // If individual vote data is provided but not full voters record, update it
+            const updatedVoters = { ...(updatedPoll.voters || {}) };
+            updatedVoters[data.voter] = data.option;
+            updatedPoll.voters = updatedVoters;
           }
+          
+          // Log the updated poll for debugging
+          console.log('Poll updated locally:', {
+            id: updatedPoll.id,
+            user_vote: updatedPoll.user_vote,
+            voters: updatedPoll.voters ? Object.keys(updatedPoll.voters).length : 0
+          });
           
           return updatedPoll;
         }
         return poll;
       });
+      
+      // Save the updated polls to localStorage immediately
+      try {
+        localStorage.setItem(STORAGE_KEYS.POLLS, JSON.stringify({
+          ...prev,
+          polls: updatedPolls
+        }));
+      } catch (e) {
+        console.error('Failed to save updated polls to localStorage:', e);
+      }
       
       return {
         ...prev,
@@ -890,12 +912,25 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
             // Update voters record if provided
             if (data.voters) {
               updatedPoll.voters = data.voters;
+            } else if (data.voter && data.option) {
+              // If individual vote data is provided but not full voters record, update it
+              const updatedVoters = { ...(updatedPoll.voters || {}) };
+              updatedVoters[data.voter] = data.option;
+              updatedPoll.voters = updatedVoters;
             }
             
             return updatedPoll;
           }
           return poll;
         });
+        
+        // Save to localStorage for this household specifically
+        try {
+          localStorage.setItem(`roomly_household_polls_${currentHouseholdId}`, 
+            JSON.stringify(updatedHouseholdPolls));
+        } catch (e) {
+          console.error(`Failed to save polls for household ${currentHouseholdId}:`, e);
+        }
         
         return {
           ...prev,
@@ -1454,10 +1489,26 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       return;
     }
 
+    // Skip user check for temporary polls (negative IDs)
+    const isTemporaryPoll = pollId < 0;
+    
+    // If this is not a temporary poll, verify the user is authenticated
+    if (!isTemporaryPoll && !user) {
+      console.error('Cannot vote on server poll: user not authenticated');
+      return;
+    }
+
     const currentHouseholdId = currentHouseholdRef.current;
     
     // Optimistic UI update - update the poll in our local cache immediately
     const updatePollLocallyWithVote = () => {
+      // Get user information for the vote
+      // For temporary polls, use a placeholder if user is not available
+      const userId = user ? user.id : 'local-user';
+      const userEmail = user ? user.email : 'local-user@example.com';
+      
+      console.log(`Adding vote from user ${userId} (${userEmail}) for poll ${pollId}, option: ${option}`);
+      
       // Update the general poll cache
       setPollCache(prev => {
         const updatedPolls = prev.polls.map(poll => {
@@ -1471,17 +1522,25 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
             
             // Create or update voters record
             const updatedVoters = { ...(poll.voters || {}) };
-            if (user) {
-              updatedVoters[user.id] = option;
-            }
+            updatedVoters[userId] = option;
             
-            return {
+            const updatedPoll = {
               ...poll,
               options: updatedOptions,
               user_vote: option, // Add user's vote to the poll to track voting state
               voters: updatedVoters, // Update voters record
               total_votes: (poll.total_votes || 0) + 1
             };
+            
+            // Log the updated poll for debugging
+            console.log('Updated poll locally:', {
+              poll_id: poll.id,
+              user_vote: option,
+              voters_count: Object.keys(updatedVoters).length,
+              user_in_voters: Object.keys(updatedVoters).includes(String(userId))
+            });
+            
+            return updatedPoll;
           }
           return poll;
         });
@@ -1507,9 +1566,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
               
               // Create or update voters record
               const updatedVoters = { ...(poll.voters || {}) };
-              if (user) {
-                updatedVoters[user.id] = option;
-              }
+              updatedVoters[userId] = option;
               
               return {
                 ...poll,
@@ -1521,6 +1578,15 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
             }
             return poll;
           });
+          
+          // Save to localStorage for this household specifically
+          try {
+            localStorage.setItem(`roomly_household_polls_${currentHouseholdId}`, 
+              JSON.stringify(updatedHouseholdPolls));
+            console.log(`Saved updated polls for household ${currentHouseholdId} to localStorage`);
+          } catch (e) {
+            console.error(`Failed to save polls for household ${currentHouseholdId}:`, e);
+          }
           
           return {
             ...prev,
@@ -1543,9 +1609,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
             
             // Create or update voters record
             const updatedVoters = { ...(poll.voters || {}) };
-            if (user) {
-              updatedVoters[user.id] = option;
-            }
+            updatedVoters[userId] = option;
             
             return {
               ...poll,
@@ -1576,6 +1640,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       return;
     }
     
+    // At this point, we know it's a real poll and user exists (checked above)
     // Apply optimistic update immediately for better UX
     updatePollLocallyWithVote();
     
@@ -1673,12 +1738,47 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     // Set up event listener for poll votes
     const pollVoteHandler = (data: any) => {
       console.log('poll_vote event received:', data);
-      if (data && data.poll) {
-        // Ensure the poll has household_id
-        if (!data.poll.household_id && currentHouseholdRef.current) {
-          data.poll.household_id = currentHouseholdRef.current;
+      
+      // Process vote data
+      if (data) {
+        // Create a proper update object if we only have vote details
+        if (!data.poll && data.poll_id && data.voter && data.option) {
+          console.log('Converting vote data to poll update');
+          // Call handlePollUpdate with the vote information
+          handlePollUpdate({
+            id: data.poll_id,
+            voter: data.voter,
+            option: data.option
+          });
+          return;
         }
-        handleNewPoll(data.poll);
+        
+        // If we have the full poll object, use it
+        if (data.poll) {
+          // Ensure the poll has household_id
+          if (!data.poll.household_id && currentHouseholdRef.current) {
+            data.poll.household_id = currentHouseholdRef.current;
+          }
+          
+          // Make sure the poll has voters if this data is a vote update
+          if (data.voter && data.option && !data.poll.voters) {
+            data.poll.voters = {};
+            data.poll.voters[data.voter] = data.option;
+          }
+          
+          // Check if this is the current user's vote
+          if (data.voter && user && String(data.voter) === String(user.id)) {
+            data.poll.user_vote = data.option;
+          }
+          
+          console.log('Updating poll with vote data:', {
+            poll_id: data.poll.id,
+            voters: data.poll.voters ? Object.keys(data.poll.voters).length : 0,
+            user_vote: data.poll.user_vote
+          });
+          
+          handleNewPoll(data.poll);
+        }
       }
     };
     
@@ -1691,7 +1791,132 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       socket.off('new_poll', newPollHandler);
       socket.off('poll_vote', pollVoteHandler);
     };
-  }, []);
+  }, [user, handlePollUpdate]);
+
+  // Add a new effect to rebuild user_vote property and migrate local votes when user data is available
+  useEffect(() => {
+    // Only run this if we have user data
+    if (user) {
+      console.log('Rebuilding user votes from voters data based on user ID:', user.id);
+      
+      // Update the general poll cache to set user_vote based on voters
+      setPollCache(prev => {
+        const updatedPolls = prev.polls.map(poll => {
+          let shouldUpdate = false;
+          let userOption = null;
+          
+          // Check if this user's ID is already in the voters record
+          if (poll.voters && Object.keys(poll.voters).includes(String(user.id))) {
+            userOption = poll.voters[user.id];
+            shouldUpdate = !poll.user_vote; // Only update if user_vote isn't set
+            console.log(`Found vote for user ${user.id} in poll ${poll.id}: ${userOption}`);
+          }
+          
+          // Check for local-user votes to migrate to the real user
+          if (poll.voters && Object.keys(poll.voters).includes('local-user')) {
+            userOption = poll.voters['local-user'];
+            shouldUpdate = true; // Always update to migrate local-user vote
+            console.log(`Migrating local-user vote in poll ${poll.id} to user ${user.id}: ${userOption}`);
+          }
+          
+          if (shouldUpdate && userOption) {
+            // Create updated voters record
+            const updatedVoters = { ...(poll.voters || {}) };
+            
+            // Add the real user's vote
+            updatedVoters[user.id] = userOption;
+            
+            // Remove local-user entry if it exists
+            if ('local-user' in updatedVoters) {
+              delete updatedVoters['local-user'];
+            }
+            
+            // Return updated poll with user_vote set and voters updated
+            return {
+              ...poll,
+              user_vote: userOption,
+              voters: updatedVoters
+            };
+          }
+          
+          return poll;
+        });
+        
+        // Save to localStorage
+        try {
+          localStorage.setItem(STORAGE_KEYS.POLLS, JSON.stringify({
+            ...prev,
+            polls: updatedPolls
+          }));
+        } catch (e) {
+          console.error('Failed to save updated polls to localStorage:', e);
+        }
+        
+        return {
+          ...prev,
+          polls: updatedPolls
+        };
+      });
+      
+      // Also update household-specific poll caches
+      setPollsByHousehold(prev => {
+        const updatedHouseholds = {...prev};
+        
+        // Process each household's polls
+        Object.entries(prev).forEach(([householdId, householdPolls]) => {
+          updatedHouseholds[householdId] = householdPolls.map(poll => {
+            let shouldUpdate = false;
+            let userOption = null;
+            
+            // Check if this user's ID is already in the voters record
+            if (poll.voters && Object.keys(poll.voters).includes(String(user.id))) {
+              userOption = poll.voters[user.id];
+              shouldUpdate = !poll.user_vote; // Only update if user_vote isn't set
+            }
+            
+            // Check for local-user votes to migrate to the real user
+            if (poll.voters && Object.keys(poll.voters).includes('local-user')) {
+              userOption = poll.voters['local-user'];
+              shouldUpdate = true; // Always update to migrate local-user vote
+              console.log(`[Household] Migrating local-user vote in poll ${poll.id} to user ${user.id}: ${userOption}`);
+            }
+            
+            if (shouldUpdate && userOption) {
+              // Create updated voters record
+              const updatedVoters = { ...(poll.voters || {}) };
+              
+              // Add the real user's vote
+              updatedVoters[user.id] = userOption;
+              
+              // Remove local-user entry if it exists
+              if ('local-user' in updatedVoters) {
+                delete updatedVoters['local-user'];
+              }
+              
+              // Return updated poll with user_vote set and voters updated
+              return {
+                ...poll,
+                user_vote: userOption,
+                voters: updatedVoters
+              };
+            }
+            
+            return poll;
+          });
+          
+          // Save to localStorage for this household
+          try {
+            localStorage.setItem(`roomly_household_polls_${householdId}`, 
+              JSON.stringify(updatedHouseholds[householdId]));
+          } catch (e) {
+            console.error(`Failed to save polls for household ${householdId}:`, e);
+          }
+        });
+        
+        return updatedHouseholds;
+      });
+    }
+  }, [user]); // Run this effect when user data becomes available
 
   const value = {
     socket,
