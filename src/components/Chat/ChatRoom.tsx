@@ -21,6 +21,8 @@ import { Link } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import useRefreshData from '@/hooks/useRefreshData';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { ImageUploadButton } from './ImageUploadButton';
+import * as ImageStorage from '@/utils/imageStorage';
 
 interface ChatRoomProps {
   householdId: string;
@@ -65,6 +67,12 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ householdId, householdName }) => {
   const [hasNewMessages, setHasNewMessages] = useState(false);
   const [reloadPending, setReloadPending] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState<boolean>(false);
+  const [selectedImage, setSelectedImage] = useState<{ 
+    url: string, 
+    file: File, 
+    storageKey?: string 
+  } | null>(null);
   
   // Refs for DOM elements and tracking state
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -404,11 +412,67 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ householdId, householdName }) => {
     }, 2000); // Stop typing indicator after 2 seconds of inactivity
   };
   
-  // Handle message sending
+  // Handle image selection from ImageUploadButton
+  const handleImageSelected = async (previewUrl: string, file: File) => {
+    try {
+      setUploadingImage(true);
+
+      // First, set with preview URL for immediate visual feedback
+      setSelectedImage({ 
+        url: previewUrl, 
+        file 
+      });
+      
+      // Use a temporary message ID for storage key generation
+      // In a real app, you would get this from the server
+      const tempMessageId = -Math.floor(Math.random() * 1000000000);
+      
+      // Store the image in our storage system
+      const storageKey = await ImageStorage.storeImage(file, tempMessageId, householdId);
+      
+      // Update the selected image with the storage key
+      setSelectedImage({
+        url: previewUrl, // Keep the preview URL for immediate display
+        file,
+        storageKey // Save the storage key for use when sending
+      });
+      
+    } catch (error) {
+      console.error('Error processing image:', error);
+      // Show error notification
+      setError('Failed to process image. Please try again.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  // Handle image removal
+  const handleRemoveImage = () => {
+    // If we have a storage key, clean up the stored image
+    if (selectedImage?.storageKey) {
+      try {
+        // Clean up the stored image
+        ImageStorage.deleteImage(selectedImage.storageKey);
+      } catch (error) {
+        console.error('Error deleting stored image:', error);
+      }
+    }
+    
+    // Clear the selected image state
+    setSelectedImage(null);
+  };
+  
+  // Handle message sending, now with efficient image storage
   const handleSendMessage = async () => {
     console.log('Sending message with household ID:', householdId);
     
-    if (!messageInput.trim()) {
+    // Allow sending just an image or just text or both
+    if (!messageInput.trim() && !selectedImage) {
+      return;
+    }
+    
+    // Don't allow sending if we're still uploading an image
+    if (uploadingImage) {
       return;
     }
     
@@ -426,8 +490,23 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ householdId, householdName }) => {
       
       // Use a small timeout to avoid state update crashes during React unmount
       setTimeout(() => {
-        // Use our message sending function from context
-        sendMessage(message, isAnnouncement);
+        if (selectedImage) {
+          if (selectedImage.storageKey) {
+            // Send message with image storage key
+            // The image is already stored in our local DB
+            sendMessage(message, isAnnouncement, selectedImage.storageKey);
+          } else {
+            // Fallback if storage failed - use the direct URL
+            // In a real app, you'd upload to a server here
+            sendMessage(message, isAnnouncement, selectedImage.url);
+          }
+          
+          // Reset image state
+          setSelectedImage(null);
+        } else {
+          // Send regular text message
+          sendMessage(message, isAnnouncement);
+        }
         
         // Reset announcement mode after sending
         if (isAnnouncement) {
@@ -690,219 +769,255 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ householdId, householdName }) => {
   }, [householdId, leaveHousehold, isTyping, stopTyping]);
   
   return (
-    <div className="flex flex-col h-full">
-      <div className="p-4 border-b flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <MessageSquare className="h-5 w-5" />
-          <h2 className="text-lg font-medium">{householdName} Chat</h2>
+    <div className="grid grid-rows-[1fr,auto] h-full">
+      <div className="flex flex-col h-full">
+        <div className="p-4 border-b flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="h-5 w-5" />
+            <h2 className="text-lg font-medium">{householdName} Chat</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="rounded-full hover:bg-primary/10"
+                    onClick={cycleColorTheme}
+                  >
+                    <Palette className="h-5 w-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>Change color theme ({getCurrentColorPreset().name})</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="rounded-full hover:bg-primary/10"
+                    onClick={toggleChatLayout}
+                  >
+                    {chatTheme === "default" ? (
+                      <div className="h-5 w-5 flex flex-col justify-center items-center gap-0.5">
+                        <div className="w-3 h-0.5 bg-foreground"></div>
+                        <div className="w-3 h-0.5 bg-foreground"></div>
+                        <div className="w-3 h-0.5 bg-foreground"></div>
+                      </div>
+                    ) : (
+                      <div className="h-5 w-5 flex flex-col justify-center items-center gap-1">
+                        <div className="w-3 h-0.5 bg-foreground"></div>
+                        <div className="w-3 h-0.5 bg-foreground"></div>
+                      </div>
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>Toggle {chatTheme === "default" ? "compact" : "default"} view</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="rounded-full hover:bg-primary/10"
+                    onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+                  >
+                    {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>Switch to {theme === "light" ? "dark" : "light"} mode</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div>
+                    <CreatePollDialog householdId={householdId} />
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  <p>Create a new poll</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="rounded-full hover:bg-primary/10"
-                  onClick={cycleColorTheme}
-                >
-                  <Palette className="h-5 w-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <p>Change color theme ({getCurrentColorPreset().name})</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="rounded-full hover:bg-primary/10"
-                  onClick={toggleChatLayout}
-                >
-                  {chatTheme === "default" ? (
-                    <div className="h-5 w-5 flex flex-col justify-center items-center gap-0.5">
-                      <div className="w-3 h-0.5 bg-foreground"></div>
-                      <div className="w-3 h-0.5 bg-foreground"></div>
-                      <div className="w-3 h-0.5 bg-foreground"></div>
-                    </div>
-                  ) : (
-                    <div className="h-5 w-5 flex flex-col justify-center items-center gap-1">
-                      <div className="w-3 h-0.5 bg-foreground"></div>
-                      <div className="w-3 h-0.5 bg-foreground"></div>
-                    </div>
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <p>Toggle {chatTheme === "default" ? "compact" : "default"} view</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="rounded-full hover:bg-primary/10"
-                  onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-                >
-                  {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <p>Switch to {theme === "light" ? "dark" : "light"} mode</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div>
-                  <CreatePollDialog householdId={householdId} />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <p>Create a new poll</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      </div>
-      
-      <ScrollArea 
-        className={cn(
-          "flex-1 p-4",
-          getCurrentColorPreset().background
-        )}
-        onScroll={handleScroll}
-        ref={scrollAreaRef}
-      >
-        <div className={cn(
-          "space-y-4",
-          chatTheme === "compact" && "space-y-2",
-        )}>
-          {/* Loading indicator at the top for infinite scroll */}
-          {hasMoreMessages && (
-            <div 
-              ref={topRef} 
-              className="py-2 flex justify-center"
-            >
-              {loadingMore ? (
-                <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-primary" />
-              ) : (
-                <span className="text-xs text-muted-foreground">Scroll up to load more messages</span>
-              )}
-            </div>
+        
+        <ScrollArea 
+          className={cn(
+            "flex-1 p-4",
+            getCurrentColorPreset().background
           )}
-          
-          {/* Unified timeline for both messages and polls */}
-          {filteredMessages.length === 0 && polls.length === 0 ? (
-            <div className="text-center text-muted-foreground p-6">
-              <MessageSquare className="h-10 w-10 mx-auto mb-2 opacity-50" />
-              <p>No messages or polls yet. Start the conversation!</p>
-            </div>
-          ) : (
-            // Combine messages and polls into a single timeline
-            [...filteredMessages.map(message => ({
-              type: 'message' as const,
-              data: message,
-              timestamp: message.created_at ? new Date(message.created_at).getTime() : Date.now()
-            })),
-            ...polls.map(poll => ({
-              type: 'poll' as const,
-              data: poll,
-              timestamp: poll.created_at ? new Date(poll.created_at).getTime() : Date.now()
-            }))]
-            // Sort all items by timestamp, oldest first
-            .sort((a, b) => a.timestamp - b.timestamp)
-            .map((item: TimelineItem, index) => (
+          onScroll={handleScroll}
+          ref={scrollAreaRef}
+        >
+          <div className={cn(
+            "space-y-4",
+            chatTheme === "compact" && "space-y-2",
+          )}>
+            {/* Loading indicator at the top for infinite scroll */}
+            {hasMoreMessages && (
               <div 
-                key={`${item.type}-${item.data.id}`} 
-                className={cn(
-                  item.type === 'poll' ? 'bg-muted/20 p-2 rounded shadow-sm' : '',
-                  chatTheme === "compact" && "text-sm"
-                )}
+                ref={topRef} 
+                className="py-2 flex justify-center"
               >
-                {/* Render the appropriate component based on item type */}
-                {item.type === 'message' ? (
-                  <MessageItem 
-                    message={item.data} 
-                    isCurrentUser={user && item.data.sender_id === user.id}
-                    compact={chatTheme === "compact"}
-                    colorPreset={getCurrentColorPreset()}
-                  />
+                {loadingMore ? (
+                  <div className="h-5 w-5 animate-spin rounded-full border-b-2 border-primary" />
                 ) : (
-                  <div className="rounded shadow-sm overflow-hidden">
-                    <div className={cn(
-                      "text-xs text-muted-foreground mb-1 px-2",
-                      chatTheme === "compact" && "text-[10px]"
-                    )}>
-                      Poll created {item.data.created_at ? formatDistanceToNow(new Date(item.data.created_at), { addSuffix: true }) : 'recently'}
-                    </div>
-                    <PollCard 
-                      poll={item.data} 
+                  <span className="text-xs text-muted-foreground">Scroll up to load more messages</span>
+                )}
+              </div>
+            )}
+            
+            {/* Unified timeline for both messages and polls */}
+            {filteredMessages.length === 0 && polls.length === 0 ? (
+              <div className="text-center text-muted-foreground p-6">
+                <MessageSquare className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                <p>No messages or polls yet. Start the conversation!</p>
+              </div>
+            ) : (
+              // Combine messages and polls into a single timeline
+              [...filteredMessages.map(message => ({
+                type: 'message' as const,
+                data: message,
+                timestamp: message.created_at ? new Date(message.created_at).getTime() : Date.now()
+              })),
+              ...polls.map(poll => ({
+                type: 'poll' as const,
+                data: poll,
+                timestamp: poll.created_at ? new Date(poll.created_at).getTime() : Date.now()
+              }))]
+              // Sort all items by timestamp, oldest first
+              .sort((a, b) => a.timestamp - b.timestamp)
+              .map((item: TimelineItem, index) => (
+                <div 
+                  key={`${item.type}-${item.data.id}`} 
+                  className={cn(
+                    item.type === 'poll' ? 'bg-muted/20 p-2 rounded shadow-sm' : '',
+                    chatTheme === "compact" && "text-sm"
+                  )}
+                >
+                  {/* Render the appropriate component based on item type */}
+                  {item.type === 'message' ? (
+                    <MessageItem 
+                      message={item.data} 
+                      isCurrentUser={user && item.data.sender_id === user.id}
+                      compact={chatTheme === "compact"}
                       colorPreset={getCurrentColorPreset()}
                     />
-                  </div>
-                )}
+                  ) : (
+                    <div className="rounded shadow-sm overflow-hidden">
+                      <div className={cn(
+                        "text-xs text-muted-foreground mb-1 px-2",
+                        chatTheme === "compact" && "text-[10px]"
+                      )}>
+                        Poll created {item.data.created_at ? formatDistanceToNow(new Date(item.data.created_at), { addSuffix: true }) : 'recently'}
+                      </div>
+                      <PollCard 
+                        poll={item.data} 
+                        colorPreset={getCurrentColorPreset()}
+                      />
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+            
+            {typingUsers.length > 0 && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="flex space-x-1">
+                  <span className="animate-bounce">•</span>
+                  <span className="animate-bounce delay-75">•</span>
+                  <span className="animate-bounce delay-150">•</span>
+                </div>
+                <span>
+                  {typingUsers.length === 1
+                    ? `${typingUsers[0].user_name} is typing...`
+                    : `${typingUsers.length} people are typing...`}
+                </span>
               </div>
-            ))
-          )}
-          
-          {typingUsers.length > 0 && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <div className="flex space-x-1">
-                <span className="animate-bounce">•</span>
-                <span className="animate-bounce delay-75">•</span>
-                <span className="animate-bounce delay-150">•</span>
-              </div>
-              <span>
-                {typingUsers.length === 1
-                  ? `${typingUsers[0].user_name} is typing...`
-                  : `${typingUsers.length} people are typing...`}
-              </span>
-            </div>
-          )}
-          
-          <div ref={messagesEndRef} />
-        </div>
-      </ScrollArea>
-      
-      {/* Scroll to bottom button with tooltip */}
-      {isScrolledUp && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                className="absolute bottom-20 right-6 rounded-full p-2 shadow-md"
-                onClick={scrollToBottom}
-                size="icon"
-              >
-                <ChevronUp className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="left">
-              <p>Scroll to bottom</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
-      
-      {/* New messages indicator */}
-      {renderNewMessagesIndicator()}
+            )}
+            
+            <div ref={messagesEndRef} />
+          </div>
+        </ScrollArea>
+        
+        {/* Scroll to bottom button with tooltip */}
+        {isScrolledUp && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  className="absolute bottom-20 right-6 rounded-full p-2 shadow-md"
+                  onClick={scrollToBottom}
+                  size="icon"
+                >
+                  <ChevronUp className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="left">
+                <p>Scroll to bottom</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        
+        {/* New messages indicator */}
+        {renderNewMessagesIndicator()}
+      </div>
       
       <div className={cn(
         "p-4 border-t",
         getCurrentColorPreset().background ? "bg-white dark:bg-gray-900" : "" // Form always has a solid background
       )}>
+        {/* Show selected image preview */}
+        {selectedImage && (
+          <div className="mb-3 relative">
+            <div className="flex items-start gap-2 p-2 rounded-md border border-border">
+              <img
+                src={selectedImage.url}
+                alt="Image to send"
+                className="max-h-24 max-w-[100px] rounded object-cover"
+              />
+              <div className="flex-1">
+                <div className="flex justify-between">
+                  <span className="text-sm font-medium truncate max-w-xs">
+                    {selectedImage.file.name}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-5 w-5"
+                    onClick={handleRemoveImage}
+                    disabled={uploadingImage}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {(selectedImage.file.size / 1024).toFixed(0)} KB
+                  {selectedImage.storageKey ? " (compressed)" : ""}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <form onSubmit={(e) => { e.preventDefault(); handleSendMessage(); }} className="flex gap-2">
           <TooltipProvider>
             <Tooltip>
@@ -925,19 +1040,33 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ householdId, householdName }) => {
             </Tooltip>
           </TooltipProvider>
           
+          <ImageUploadButton 
+            onImageSelected={handleImageSelected} 
+            maxSizeMB={3}
+            householdId={householdId}
+          />
+          
           <Input
             value={messageInput}
             onChange={(e) => setMessageInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Type a message..."
+            placeholder={selectedImage ? "Add a caption (optional)..." : "Type a message..."}
             className="flex-1"
           />
           
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button type="submit" size="icon">
-                  <Send className="h-4 w-4" />
+                <Button 
+                  type="submit" 
+                  size="icon"
+                  disabled={(!messageInput.trim() && !selectedImage) || uploadingImage}
+                >
+                  {uploadingImage ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent"></div>
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="top">

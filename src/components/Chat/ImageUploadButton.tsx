@@ -18,19 +18,24 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useToast } from "@/components/ui/use-toast";
 
 interface ImageUploadButtonProps {
-  onImageSelected: (imageUrl: string, file: File) => void;
+  onImageSelected: (imageKey: string, file: File) => void;
   maxSizeMB?: number;
+  householdId: string;
 }
 
 const ImageUploadButton: React.FC<ImageUploadButtonProps> = ({
   onImageSelected,
   maxSizeMB = 5,
+  householdId,
 }) => {
   const [open, setOpen] = React.useState(false);
   const [selectedFile, setSelectedFile] = React.useState<File | null>(null);
   const [previewImage, setPreviewImage] = React.useState<string | null>(null);
+  const [isUploading, setIsUploading] = React.useState(false);
+  const { toast } = useToast();
 
   const handleFileChange = (file: File | null) => {
     setSelectedFile(file);
@@ -43,13 +48,33 @@ const ImageUploadButton: React.FC<ImageUploadButtonProps> = ({
     }
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (selectedFile && previewImage) {
-      onImageSelected(previewImage, selectedFile);
-      setOpen(false);
-      // Reset after selection
-      setSelectedFile(null);
-      setPreviewImage(null);
+      try {
+        setIsUploading(true);
+        // We'll now pass the file directly to the parent component
+        // which will use the imageStorage utility to process and store it
+        onImageSelected(previewImage, selectedFile);
+        setOpen(false);
+        
+        // Show success toast
+        toast({
+          title: "Image ready",
+          description: "Image prepared for sending",
+        });
+      } catch (error) {
+        console.error("Error processing image:", error);
+        toast({
+          variant: "destructive",
+          title: "Upload failed",
+          description: "There was an error preparing your image. Please try again.",
+        });
+      } finally {
+        setIsUploading(false);
+        // Reset after attempt regardless of outcome
+        setSelectedFile(null);
+        setPreviewImage(null);
+      }
     }
   };
 
@@ -112,9 +137,16 @@ const ImageUploadButton: React.FC<ImageUploadButtonProps> = ({
           <Button
             type="button"
             onClick={handleUpload}
-            disabled={!selectedFile}
+            disabled={!selectedFile || isUploading}
           >
-            Send image
+            {isUploading ? (
+              <>
+                <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-background border-t-transparent"></span>
+                Processing...
+              </>
+            ) : (
+              "Send image"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

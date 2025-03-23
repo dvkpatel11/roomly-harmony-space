@@ -15,6 +15,7 @@ import { AnimatePresence } from "framer-motion";
 import { BrowserRouter, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import ChatRoom from './components/Chat/ChatRoom';
 import { getAuth } from "@/services/service-factory";
+import ImageCacheManager from './components/Chat/ImageCacheManager';
 
 // Pages
 import Login from "./pages/Auth/Login";
@@ -122,6 +123,7 @@ const AuthenticatedApp = () => {
 
   return (
     <DataProvider>
+      <ImageCacheManager />
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
           <Route

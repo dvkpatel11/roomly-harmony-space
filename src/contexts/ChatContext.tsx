@@ -12,6 +12,7 @@ export interface Message {
   created_at: string;
   edited_at?: string;
   household_id?: string;
+  image_url?: string;
 }
 
 export interface Poll {
@@ -56,7 +57,7 @@ export interface ChatContextType {
   connected: boolean;
   joinHousehold: (householdId: string) => Promise<void>;
   leaveHousehold: (householdId: string, preserveData?: boolean) => Promise<void>;
-  sendMessage: (content: string, isAnnouncement?: boolean) => void;
+  sendMessage: (content: string, isAnnouncement?: boolean, imageUrl?: string) => void;
   editMessage: (messageId: number, content: string) => void;
   deleteMessage: (messageId: number) => void;
   startTyping: () => void;
@@ -100,10 +101,12 @@ const MAX_CACHE_SIZE = 500; // Maximum number of messages to keep in memory
 
 // Add constants for localStorage keys
 const STORAGE_KEYS = {
-  MESSAGES: 'roomly_messages_cache',
-  POLLS: 'roomly_polls_cache',
+  MESSAGES: 'messages',
+  POLLS: 'polls',
   CURRENT_HOUSEHOLD: 'currentHouseholdId',
-  LATEST_MESSAGE_ID: 'latestMessageId'
+  LATEST_MESSAGE_ID: 'latestMessageId',
+  HOUSEHOLD_MESSAGES_PREFIX: 'roomly_household_messages_',
+  HOUSEHOLD_POLLS_PREFIX: 'roomly_household_polls_'
 };
 
 export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
@@ -113,16 +116,97 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   // Initialize message cache from localStorage if available
   const initializeMessageCache = (): MessageCache => {
     try {
+      // First try to get the general message cache
       const savedCache = localStorage.getItem(STORAGE_KEYS.MESSAGES);
+      let generalCache: MessageCache | null = null;
+      
       if (savedCache) {
-        const parsed = JSON.parse(savedCache);
-        console.log('Restored message cache from localStorage with', parsed.messages.length, 'messages');
-        return parsed;
+        try {
+          generalCache = JSON.parse(savedCache);
+          console.log('Restored general message cache from localStorage with', generalCache.messages.length, 'messages');
+        } catch (e) {
+          console.error('Failed to parse general message cache from localStorage:', e);
+        }
+      }
+      
+      // Then collect all household-specific messages
+      const allMessages: Message[] = [];
+      let householdMessagesCount = 0;
+      
+      // Look for any keys that start with STORAGE_KEYS.HOUSEHOLD_MESSAGES_PREFIX
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(STORAGE_KEYS.HOUSEHOLD_MESSAGES_PREFIX)) {
+          const householdId = key.replace(STORAGE_KEYS.HOUSEHOLD_MESSAGES_PREFIX, '');
+          const savedMessages = localStorage.getItem(key);
+          if (savedMessages) {
+            try {
+              const messages = JSON.parse(savedMessages);
+              if (Array.isArray(messages)) {
+                // Add all messages to our combined array
+                allMessages.push(...messages);
+                householdMessagesCount += messages.length;
+              }
+            } catch (e) {
+              console.error(`Failed to parse messages for household ${householdId}:`, e);
+            }
+          }
+        }
+      }
+      
+      // If we found household messages
+      if (allMessages.length > 0) {
+        console.log(`Found ${allMessages.length} total messages across ${householdMessagesCount} household caches`);
+        
+        // Sort by creation time
+        allMessages.sort((a, b) => 
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+        
+        // If we have a general cache, combine them (prefer household cache for duplicates)
+        if (generalCache) {
+          // Identify unique messages by creating a Map using message IDs as keys
+          const messageMap = new Map<number, Message>();
+          
+          // First add all from general cache
+          generalCache.messages.forEach(msg => messageMap.set(msg.id, msg));
+          
+          // Then add from household caches (will override duplicates)
+          allMessages.forEach(msg => messageMap.set(msg.id, msg));
+          
+          // Convert back to array and sort
+          const combinedMessages = Array.from(messageMap.values()).sort((a, b) => 
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          );
+          
+          console.log(`Combined ${generalCache.messages.length} general and ${allMessages.length} household messages into ${combinedMessages.length} unique messages`);
+          
+          return {
+            messages: combinedMessages,
+            hasMore: generalCache.hasMore,
+            oldestMessageId: combinedMessages[0]?.id ?? null,
+            newestMessageId: combinedMessages[combinedMessages.length - 1]?.id ?? null
+          };
+        }
+        
+        // If we don't have a general cache, use just the household messages
+        return {
+          messages: allMessages,
+          hasMore: false,
+          oldestMessageId: allMessages[0]?.id ?? null,
+          newestMessageId: allMessages[allMessages.length - 1]?.id ?? null
+        };
+      }
+      
+      // If we have a general cache but no household messages, use the general cache
+      if (generalCache) {
+        return generalCache;
       }
     } catch (e) {
-      console.error('Failed to parse message cache from localStorage:', e);
+      console.error('Failed to initialize message cache from localStorage:', e);
     }
     
+    // Default empty cache
     return {
       messages: [],
       hasMore: false,
@@ -134,16 +218,88 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   // Initialize poll cache from localStorage if available
   const initializePollCache = (): PollCache => {
     try {
+      // First try to get the general poll cache
       const savedCache = localStorage.getItem(STORAGE_KEYS.POLLS);
+      let generalCache: PollCache | null = null;
+      
       if (savedCache) {
-        const parsed = JSON.parse(savedCache);
-        console.log('Restored poll cache from localStorage with', parsed.polls.length, 'polls');
-        return parsed;
+        try {
+          generalCache = JSON.parse(savedCache);
+          console.log('Restored general poll cache from localStorage with', generalCache.polls.length, 'polls');
+        } catch (e) {
+          console.error('Failed to parse general poll cache from localStorage:', e);
+        }
+      }
+      
+      // Then collect all household-specific polls
+      const allPolls: Poll[] = [];
+      let householdPollsCount = 0;
+      
+      // Look for any keys that start with STORAGE_KEYS.HOUSEHOLD_POLLS_PREFIX
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(STORAGE_KEYS.HOUSEHOLD_POLLS_PREFIX)) {
+          const householdId = key.replace(STORAGE_KEYS.HOUSEHOLD_POLLS_PREFIX, '');
+          const savedPolls = localStorage.getItem(key);
+          if (savedPolls) {
+            try {
+              const polls = JSON.parse(savedPolls);
+              if (Array.isArray(polls)) {
+                // Add all polls to our combined array
+                allPolls.push(...polls);
+                householdPollsCount += polls.length;
+              }
+            } catch (e) {
+              console.error(`Failed to parse polls for household ${householdId}:`, e);
+            }
+          }
+        }
+      }
+      
+      // If we found household polls
+      if (allPolls.length > 0) {
+        console.log(`Found ${allPolls.length} total polls across ${householdPollsCount} household caches`);
+        
+        // If we have a general cache, combine them (prefer household cache for duplicates)
+        if (generalCache) {
+          // Identify unique polls by creating a Map using poll IDs as keys
+          const pollMap = new Map<number, Poll>();
+          
+          // First add all from general cache
+          generalCache.polls.forEach(poll => pollMap.set(poll.id, poll));
+          
+          // Then add from household caches (will override duplicates)
+          allPolls.forEach(poll => pollMap.set(poll.id, poll));
+          
+          // Convert back to array
+          const combinedPolls = Array.from(pollMap.values());
+          
+          console.log(`Combined ${generalCache.polls.length} general and ${allPolls.length} household polls into ${combinedPolls.length} unique polls`);
+          
+          return {
+            polls: combinedPolls,
+            hasMore: generalCache.hasMore,
+            oldestPollId: generalCache.oldestPollId
+          };
+        }
+        
+        // If we don't have a general cache, use just the household polls
+        return {
+          polls: allPolls,
+          hasMore: false,
+          oldestPollId: null
+        };
+      }
+      
+      // If we have a general cache but no household polls, use the general cache
+      if (generalCache) {
+        return generalCache;
       }
     } catch (e) {
-      console.error('Failed to parse poll cache from localStorage:', e);
+      console.error('Failed to initialize poll cache from localStorage:', e);
     }
     
+    // Default empty cache
     return {
       polls: [],
       hasMore: false,
@@ -199,11 +355,11 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     }
     
     // Only initialize socket if we don't already have one
-    console.log('Initializing socket connection to:', apiUrl);
-    console.log('Token available (first 10 chars):', token.substring(0, 10) + '...');
-    
-    try {
-      // Create socket connection with auth
+      console.log('Initializing socket connection to:', apiUrl);
+      console.log('Token available (first 10 chars):', token.substring(0, 10) + '...');
+      
+      try {
+        // Create socket connection with auth
       console.log('Creating new socket connection with these options:', {
         autoConnect: true,
         reconnection: true,
@@ -212,14 +368,14 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         timeout: 20000
       });
       
-      const newSocket = io(apiUrl, {
-        autoConnect: true,
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000,
-        timeout: 20000, // Increase timeout to 20 seconds
-        query: { token }
-      });
+        const newSocket = io(apiUrl, {
+          autoConnect: true,
+          reconnection: true,
+          reconnectionAttempts: 5,
+          reconnectionDelay: 1000,
+          timeout: 20000, // Increase timeout to 20 seconds
+          query: { token }
+        });
       
       // Debug connection status
       console.log('Socket initializing. Current state:', 
@@ -246,10 +402,10 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           }
         }
       }, 10000);
-      
-      // Store socket in state and ref for more reliable access
-      setSocket(newSocket);
-      socketRef.current = newSocket;
+        
+        // Store socket in state and ref for more reliable access
+        setSocket(newSocket);
+        socketRef.current = newSocket;
       
       // Check if we had a previous household ID in localStorage
       const savedHouseholdId = localStorage.getItem('currentHouseholdId');
@@ -258,43 +414,43 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         currentHouseholdRef.current = savedHouseholdId;
         setCurrentHouseholdId(savedHouseholdId);
       }
-      
-      // Set up socket event handlers
-      newSocket.on('connect', () => {
+        
+        // Set up socket event handlers
+        newSocket.on('connect', () => {
         console.log('✅ Socket connected successfully! Socket ID:', newSocket.id);
         
         // Clear timeout since we're connected
         clearTimeout(connectionTimeout);
         
-        // Send token for authentication
-        if (newSocket && token) {
+          // Send token for authentication
+          if (newSocket && token) {
           console.log('Authenticating socket connection...');
-          newSocket.emit('authenticate', { token });
-        }
+            newSocket.emit('authenticate', { token });
+          }
         
-        setConnected(true);
-        connectedRef.current = true;
-        setLoading(false);
-        setError(null);
-      });
-      
-      newSocket.on('authenticated', () => {
-        console.log('Socket authenticated successfully');
-      });
-      
-      newSocket.on('unauthorized', (err: any) => {
-        console.error('Authentication error:', err);
-        setError('Authentication failed. Please try logging in again.');
-        setLoading(false);
+          setConnected(true);
+          connectedRef.current = true;
+          setLoading(false);
+          setError(null);
+        });
         
-        // Clean up socket on auth failure
-        if (newSocket) newSocket.disconnect();
-      });
-      
-      // Message and data event handlers
-      if (newSocket) {
-        // CHANGED FROM 'message' to 'new_message'
-        newSocket.on('new_message', (message) => {
+        newSocket.on('authenticated', () => {
+          console.log('Socket authenticated successfully');
+        });
+        
+        newSocket.on('unauthorized', (err: any) => {
+          console.error('Authentication error:', err);
+          setError('Authentication failed. Please try logging in again.');
+          setLoading(false);
+          
+          // Clean up socket on auth failure
+          if (newSocket) newSocket.disconnect();
+        });
+        
+        // Message and data event handlers
+        if (newSocket) {
+          // CHANGED FROM 'message' to 'new_message'
+          newSocket.on('new_message', (message) => {
           console.log('📩 Received new message from server:', message);
           // Log more details to debug
           console.log('Current household ID:', currentHouseholdId);
@@ -302,9 +458,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           console.log('Socket ID:', newSocket.id);
           
           // Add the message without clearing the cache
-          handleNewMessage(message);
-        });
-        
+            handleNewMessage(message);
+          });
+          
         newSocket.on('new_poll', (poll) => {
           console.log('📊 Received new poll from server:', poll);
           // Add household ID if not present
@@ -314,39 +470,39 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           handleNewPoll(poll);
         });
         
-        newSocket.on('poll_updated', handlePollUpdate);
-        newSocket.on('user_typing', handleTypingEvent);
-        newSocket.on('user_typing_stopped', (data) => {
-          console.log('User stopped typing:', data);
-          setTypingUsers(prev => prev.filter(user => user.user_id !== data.user_id));
-        });
-        
-        // Add listeners for message updates and deletions
-        newSocket.on('message_edited', (data) => {
-          console.log('Message edited:', data);
+          newSocket.on('poll_updated', handlePollUpdate);
+          newSocket.on('user_typing', handleTypingEvent);
+          newSocket.on('user_typing_stopped', (data) => {
+            console.log('User stopped typing:', data);
+            setTypingUsers(prev => prev.filter(user => user.user_id !== data.user_id));
+          });
+          
+          // Add listeners for message updates and deletions
+          newSocket.on('message_edited', (data) => {
+            console.log('Message edited:', data);
           setMessageCache(prevCache => ({
             ...prevCache,
             messages: prevCache.messages.map(msg => 
-              msg.id === data.id 
-                ? { ...msg, content: data.content, edited_at: data.edited_at } 
-                : msg
-            )
+                msg.id === data.id 
+                  ? { ...msg, content: data.content, edited_at: data.edited_at } 
+                  : msg
+              )
           }));
-        });
-        
-        newSocket.on('message_deleted', (data) => {
-          console.log('Message deleted:', data);
+          });
+          
+          newSocket.on('message_deleted', (data) => {
+            console.log('Message deleted:', data);
           setMessageCache(prevCache => ({
             ...prevCache,
             messages: prevCache.messages.filter(msg => msg.id !== data.id)
           }));
-        });
-        
-        // Add error handler
-        newSocket.on('error', (error) => {
-          console.error('Socket error:', error);
-          setError(`Socket error: ${error.message || 'Unknown error'}`);
-        });
+          });
+          
+          // Add error handler
+          newSocket.on('error', (error) => {
+            console.error('Socket error:', error);
+            setError(`Socket error: ${error.message || 'Unknown error'}`);
+          });
         
         newSocket.on('poll_deleted', (data) => {
           console.log('Poll deleted:', data);
@@ -476,7 +632,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
                   
                   // Save to localStorage
                   try {
-                    localStorage.setItem(`roomly_household_polls_${householdId}`, 
+                    localStorage.setItem(`${STORAGE_KEYS.HOUSEHOLD_POLLS_PREFIX}${householdId}`, 
                       JSON.stringify(combinedPolls));
                   } catch (e) {
                     console.error(`Failed to save polls for household ${householdId}:`, e);
@@ -509,7 +665,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
                   
                   // Save to localStorage
                   try {
-                    localStorage.setItem(`roomly_household_polls_${householdId}`, 
+                    localStorage.setItem(`${STORAGE_KEYS.HOUSEHOLD_POLLS_PREFIX}${householdId}`, 
                       JSON.stringify(pollsWithHouseholdId));
                     console.log(`Saved ${pollsWithHouseholdId.length} polls for household ${householdId}`);
                   } catch (e) {
@@ -523,62 +679,62 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
               console.log(`Keeping existing ${existingPollsCount} polls for household ${householdId}`);
             }
           }
-        });
-      }
-      
-      newSocket.on('disconnect', () => {
-        console.log('Socket disconnected');
-        setConnected(false);
-        connectedRef.current = false;
-      });
-      
-      newSocket.on('connect_error', (err) => {
-        console.error('Socket connection error:', err);
-        setError(`Connection error: ${err.message}`);
-        setLoading(false);
-        setConnected(false);
-        connectedRef.current = false;
-      });
-      
-      // Clean up function
-      return () => {
-        console.log('Cleaning up socket connection');
-        // Clear all event listeners and close socket
-        if (newSocket) {
-          newSocket.off('connect');
-          newSocket.off('authenticated');
-          newSocket.off('unauthorized');
-          newSocket.off('new_message'); // CHANGED FROM 'message'
-          newSocket.off('new_poll');
-          newSocket.off('poll_updated');
-          newSocket.off('user_typing');
-          newSocket.off('user_typing_stopped');
-          newSocket.off('message_edited');
-          newSocket.off('message_deleted');
-          newSocket.off('error');
-          newSocket.off('disconnect');
-          newSocket.off('connect_error');
-          newSocket.off('joined_household');
-          
-          newSocket.disconnect();
+          });
         }
         
-        // Reset all state except caches
-        setSocket(null);
-        socketRef.current = null;
-        setConnected(false);
-        connectedRef.current = false;
-        setCurrentHouseholdId(null);
-        currentHouseholdRef.current = null;
-        joinAttemptInProgressRef.current = false;
+        newSocket.on('disconnect', () => {
+          console.log('Socket disconnected');
+          setConnected(false);
+          connectedRef.current = false;
+        });
         
+        newSocket.on('connect_error', (err) => {
+          console.error('Socket connection error:', err);
+          setError(`Connection error: ${err.message}`);
+          setLoading(false);
+          setConnected(false);
+          connectedRef.current = false;
+        });
+        
+        // Clean up function
+        return () => {
+          console.log('Cleaning up socket connection');
+          // Clear all event listeners and close socket
+          if (newSocket) {
+            newSocket.off('connect');
+            newSocket.off('authenticated');
+            newSocket.off('unauthorized');
+            newSocket.off('new_message'); // CHANGED FROM 'message'
+          newSocket.off('new_poll');
+            newSocket.off('poll_updated');
+            newSocket.off('user_typing');
+            newSocket.off('user_typing_stopped');
+            newSocket.off('message_edited');
+            newSocket.off('message_deleted');
+            newSocket.off('error');
+            newSocket.off('disconnect');
+            newSocket.off('connect_error');
+          newSocket.off('joined_household');
+            
+            newSocket.disconnect();
+          }
+          
+        // Reset all state except caches
+          setSocket(null);
+          socketRef.current = null;
+          setConnected(false);
+          connectedRef.current = false;
+          setCurrentHouseholdId(null);
+          currentHouseholdRef.current = null;
+          joinAttemptInProgressRef.current = false;
+          
         // We no longer clear caches here to ensure data persists across unmounts
-        setTypingUsers([]);
-      };
-    } catch (error) {
-      console.error('Error initializing socket:', error);
-      setError('Failed to initialize socket connection. Please refresh the page.');
-      setLoading(false);
+          setTypingUsers([]);
+        };
+      } catch (error) {
+        console.error('Error initializing socket:', error);
+        setError('Failed to initialize socket connection. Please refresh the page.');
+        setLoading(false);
     }
   }, [token, apiUrl]);
   
@@ -591,11 +747,11 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       // Try to restore household-specific message caches
       const householdMessageMap: Record<string, Message[]> = {};
       
-      // Look for any keys that start with 'roomly_household_messages_'
+      // Look for any keys that start with STORAGE_KEYS.HOUSEHOLD_MESSAGES_PREFIX
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key && key.startsWith('roomly_household_messages_')) {
-          const householdId = key.replace('roomly_household_messages_', '');
+        if (key && key.startsWith(STORAGE_KEYS.HOUSEHOLD_MESSAGES_PREFIX)) {
+          const householdId = key.replace(STORAGE_KEYS.HOUSEHOLD_MESSAGES_PREFIX, '');
           const savedMessages = localStorage.getItem(key);
           if (savedMessages) {
             try {
@@ -628,11 +784,11 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       // Try to restore household-specific poll caches
       const householdPollMap: Record<string, Poll[]> = {};
       
-      // Look for any keys that start with 'roomly_household_polls_'
+      // Look for any keys that start with STORAGE_KEYS.HOUSEHOLD_POLLS_PREFIX
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
-        if (key && key.startsWith('roomly_household_polls_')) {
-          const householdId = key.replace('roomly_household_polls_', '');
+        if (key && key.startsWith(STORAGE_KEYS.HOUSEHOLD_POLLS_PREFIX)) {
+          const householdId = key.replace(STORAGE_KEYS.HOUSEHOLD_POLLS_PREFIX, '');
           const savedPolls = localStorage.getItem(key);
           if (savedPolls) {
             try {
@@ -655,7 +811,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       console.error('Error initializing pollsByHousehold:', e);
     }
   }, []);
-
+  
   // Event handlers
   const handleNewMessage = (message: Message) => {
     console.log('💬 Processing new message in handleNewMessage:', message);
@@ -735,9 +891,11 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         );
         
         try {
-          // Save to localStorage
-          localStorage.setItem(`roomly_household_messages_${householdId}`, 
-            JSON.stringify(updatedHouseholdMessages));
+          // Save to localStorage using consistent key
+          localStorage.setItem(
+            `${STORAGE_KEYS.HOUSEHOLD_MESSAGES_PREFIX}${householdId}`, 
+            JSON.stringify(updatedHouseholdMessages)
+          );
           console.log(`Saved ${updatedHouseholdMessages.length} messages for household ${householdId}`);
         } catch (e) {
           console.error(`Failed to save messages for household ${householdId}:`, e);
@@ -810,7 +968,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           // Save to localStorage for this household
           try {
             localStorage.setItem(
-              `roomly_household_polls_${poll.household_id}`,
+              `${STORAGE_KEYS.HOUSEHOLD_POLLS_PREFIX}${poll.household_id}`,
               JSON.stringify(updatedHouseholdPolls)
             );
             console.log(`Saved ${updatedHouseholdPolls.length} polls for household ${poll.household_id}`);
@@ -926,7 +1084,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         
         // Save to localStorage for this household specifically
         try {
-          localStorage.setItem(`roomly_household_polls_${currentHouseholdId}`, 
+          localStorage.setItem(`${STORAGE_KEYS.HOUSEHOLD_POLLS_PREFIX}${currentHouseholdId}`, 
             JSON.stringify(updatedHouseholdPolls));
         } catch (e) {
           console.error(`Failed to save polls for household ${currentHouseholdId}:`, e);
@@ -1042,9 +1200,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       const response = await fetch(
         `${apiUrl}/households/${currentHouseholdId}/polls?before_id=${oldestPollId}&limit=50&include_expired=true`,
         {
-          headers: {
+        headers: {
             'Authorization': `Bearer ${token}`
-          }
+        }
         }
       );
       
@@ -1101,21 +1259,21 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     if (!householdId || householdId.trim() === '') {
       console.error('Invalid household ID');
       setError('Invalid household ID');
-      return;
-    }
-    
+        return;
+      }
+      
     if (!socket || !token) {
       console.error('Cannot join household: Socket or token not available');
       setError('Connection not established. Please refresh the page.');
-      return;
-    }
-    
+        return;
+      }
+      
     // If we're already in this household, skip
     if (currentHouseholdRef.current === householdId) {
       console.log('Already in household', householdId, 'skipping join');
-      return;
-    }
-    
+        return;
+      }
+      
     try {
       // Save the old household ID before updating
       const oldHouseholdId = currentHouseholdRef.current;
@@ -1177,7 +1335,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       // Request to join household room
       console.log('Emitting join_household event with token and householdId:', householdId);
       socket.emit('join_household', { 
-        token, 
+        token,
         household_id: householdId 
       });
     } catch (err) {
@@ -1220,7 +1378,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       } else {
         // Only clear the household reference when not preserving data
         console.log('Clearing household reference:', householdId);
-        currentHouseholdRef.current = null;
+      currentHouseholdRef.current = null;
         setCurrentHouseholdId(null);
         
         // DON'T CLEAR CACHE ON NAVIGATION - we now use localStorage for persistence
@@ -1241,81 +1399,90 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   };
 
   // Send a new message
-  const sendMessage = (content: string, isAnnouncement = false) => {
-    const socketExists = !!socket;
-    const tokenExists = !!token;
-    
-    // Try to get householdId from ref or localStorage as fallback
-    let householdId = currentHouseholdRef.current;
-    if (!householdId) {
-      // Check state first
-      if (currentHouseholdId) {
-        console.log('Using currentHouseholdId from state:', currentHouseholdId);
-        householdId = currentHouseholdId;
-        // Update the ref for future use
-        currentHouseholdRef.current = currentHouseholdId;
-      } else {
-        // Fallback to localStorage
-        householdId = localStorage.getItem('currentHouseholdId');
-        if (householdId) {
-          console.log('Restoring household ID from localStorage:', householdId);
-          // Restore the ref and state if we found a value in localStorage
-          currentHouseholdRef.current = householdId;
-          setCurrentHouseholdId(householdId);
-        } else {
-          console.error('No household ID available from any source');
-        }
-      }
-    }
-    
-    const householdExists = !!householdId;
-    const contentValid = !!content && content.trim() !== '';
-    
-    if (!socketExists || !tokenExists || !householdExists || !contentValid) {
-      console.error('Cannot send message: missing requirements', { 
-        socketExists, 
-        tokenExists, 
-        householdExists, 
-        contentValid,
-        householdId
-      });
+  const sendMessage = (content: string, isAnnouncement = false, imageUrl?: string) => {
+    if (!socket || !connected) {
+      console.error('Cannot send message: Socket disconnected');
       return;
     }
     
+    if (!currentHouseholdId) {
+      console.error('Cannot send message: No household ID');
+      return;
+    }
+    
+    // Clear typing indicator when sending a message
+    stopTyping();
+    
     try {
-      const messageData = {
-        token,
-        household_id: householdId,
-        content,
-        is_announcement: isAnnouncement
+      // Generate a temporary ID for optimistic updates  
+      const tempId = -Math.floor(Math.random() * 1000000000);
+      const now = new Date().toISOString();
+      
+      // Create the message object
+      const newMessage: Message = {
+        id: tempId,
+        content: content,
+        sender_id: user?.id || 0,
+        sender_email: user?.email || 'Guest',
+        is_announcement: isAnnouncement,
+        created_at: now,
+        household_id: currentHouseholdId,
+        image_url: imageUrl // Add the image URL if provided
       };
       
-      console.log('🚀 Attempting to send message:', messageData);
-      console.log('Socket status - Connected:', socket.connected, 'Socket ID:', socket.id);
+      // Add to local message cache immediately for optimistic UI
+      setMessageCache(prev => {
+        // Add message to the end of the list (newest)
+        const updatedMessages = [...prev.messages, newMessage];
+        // Ensure we don't exceed the maximum cache size
+        const messagesForCache = updatedMessages.slice(-MAX_CACHE_SIZE);
+        
+        // Update latest message ID
+        const newestId = messagesForCache.length > 0 
+          ? Math.max(...messagesForCache.map(m => m.id))
+          : prev.newestMessageId;
+        
+        // Update MessageCache state
+        return {
+          ...prev,
+          messages: messagesForCache,
+          newestMessageId: newestId,
+        };
+      });
       
-      socket.emit('message', messageData, (response: any) => {
-        if (response && response.error) {
-          console.error('Error sending message:', response.error);
-        } else {
-          console.log('✅ Message sent successfully, server response:', response);
+      // Update household-specific messages too if we're tracking those
+      if (currentHouseholdId) {
+        setMessagesByHousehold(prev => {
+          const householdMessages = prev[currentHouseholdId] || [];
+          const updatedMessages = [...householdMessages, newMessage];
           
-          // Optimize by immediately displaying the sent message without waiting for server event
-          if (response && response.message_id) {
-            console.log('Adding local copy of sent message to cache');
-            const localMessage: Message = {
-              id: response.message_id,
-              content,
-              sender_id: response.sender_id || '(unknown)',
-              sender_email: response.sender_email || localStorage.getItem('userEmail') || '(unknown)',
-              is_announcement: isAnnouncement,
-              created_at: new Date().toISOString(),
-            };
-            handleNewMessage(localMessage);
-          }
+          return {
+            ...prev,
+            [currentHouseholdId]: updatedMessages.slice(-MAX_CACHE_SIZE)
+          };
+        });
+      }
+      
+      // Create the message payload
+      const messageData = {
+        content: content,
+        is_announcement: isAnnouncement,
+        household_id: currentHouseholdId,
+        image_url: imageUrl // Include image URL in payload
+      };
+      
+      // Send the message through the socket
+      socket.emit('send_message', messageData, (ack: any) => {
+        if (ack && ack.error) {
+          console.error('Failed to send message:', ack.error);
+          setError(`Failed to send message: ${ack.error}`);
+        } else {
+          console.log('Message sent successfully, server ack:', ack);
         }
       });
-    } catch (error) {
-      console.error('Error in sendMessage:', error);
+    } catch (err) {
+      console.error('Error sending message:', err);
+      setError('Failed to send message');
     }
   };
 
@@ -1581,7 +1748,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           
           // Save to localStorage for this household specifically
           try {
-            localStorage.setItem(`roomly_household_polls_${currentHouseholdId}`, 
+            localStorage.setItem(`${STORAGE_KEYS.HOUSEHOLD_POLLS_PREFIX}${currentHouseholdId}`, 
               JSON.stringify(updatedHouseholdPolls));
             console.log(`Saved updated polls for household ${currentHouseholdId} to localStorage`);
           } catch (e) {
@@ -1646,7 +1813,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     
     // Then send the vote to the server
     console.log(`Submitting vote for poll ${pollId}, option: ${option}`);
-    
+
     fetch(`${apiUrl}/polls/${pollId}/vote`, {
       method: 'POST',
       headers: {
@@ -1693,24 +1860,134 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     });
   };
 
-  // Persist message cache to localStorage whenever it changes
+  // Sync the main message cache with household-specific message caches
   useEffect(() => {
     if (messageCache.messages.length > 0) {
       try {
+        // First save the main cache
         localStorage.setItem(STORAGE_KEYS.MESSAGES, JSON.stringify(messageCache));
-        console.log('Saved', messageCache.messages.length, 'messages to localStorage');
+        console.log('Saved', messageCache.messages.length, 'messages to main localStorage cache');
+
+        // Now make sure each message is properly saved to its household cache
+        const householdMessages: Record<string, Message[]> = {};
+        
+        // Group messages by household_id
+        messageCache.messages.forEach(message => {
+          if (message.household_id) {
+            if (!householdMessages[message.household_id]) {
+              householdMessages[message.household_id] = [];
+            }
+            householdMessages[message.household_id].push(message);
+          }
+        });
+        
+        // Save each household's messages separately
+        Object.entries(householdMessages).forEach(([householdId, messages]) => {
+          try {
+            const key = `${STORAGE_KEYS.HOUSEHOLD_MESSAGES_PREFIX}${householdId}`;
+            
+            // Merge with any existing messages for this household
+            const existingJson = localStorage.getItem(key);
+            let existingMessages: Message[] = [];
+            
+            if (existingJson) {
+              try {
+                const parsed = JSON.parse(existingJson);
+                if (Array.isArray(parsed)) {
+                  existingMessages = parsed;
+                }
+              } catch (e) {
+                console.error(`Error parsing existing messages for household ${householdId}:`, e);
+              }
+            }
+            
+            // Merge messages, avoiding duplicates
+            const messageMap = new Map<number, Message>();
+            
+            // Add existing messages first
+            existingMessages.forEach(msg => messageMap.set(msg.id, msg));
+            
+            // Then add new messages (which will override any duplicates)
+            messages.forEach(msg => messageMap.set(msg.id, msg));
+            
+            // Convert to array and sort
+            const combinedMessages = Array.from(messageMap.values()).sort((a, b) => 
+              new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+            );
+            
+            // Save the combined messages
+            localStorage.setItem(key, JSON.stringify(combinedMessages));
+            console.log(`Synced ${combinedMessages.length} messages for household ${householdId}`);
+          } catch (e) {
+            console.error(`Error saving messages for household ${householdId}:`, e);
+          }
+        });
       } catch (e) {
         console.error('Failed to save message cache to localStorage:', e);
       }
     }
   }, [messageCache]);
-  
-  // Persist poll cache to localStorage whenever it changes
+
+  // Sync the main poll cache with household-specific poll caches
   useEffect(() => {
     if (pollCache.polls.length > 0) {
       try {
+        // First save the main cache
         localStorage.setItem(STORAGE_KEYS.POLLS, JSON.stringify(pollCache));
-        console.log('Saved', pollCache.polls.length, 'polls to localStorage');
+        console.log('Saved', pollCache.polls.length, 'polls to main localStorage cache');
+        
+        // Now make sure each poll is properly saved to its household cache
+        const householdPolls: Record<string, Poll[]> = {};
+        
+        // Group polls by household_id
+        pollCache.polls.forEach(poll => {
+          if (poll.household_id) {
+            if (!householdPolls[poll.household_id]) {
+              householdPolls[poll.household_id] = [];
+            }
+            householdPolls[poll.household_id].push(poll);
+          }
+        });
+        
+        // Save each household's polls separately
+        Object.entries(householdPolls).forEach(([householdId, polls]) => {
+          try {
+            const key = `${STORAGE_KEYS.HOUSEHOLD_POLLS_PREFIX}${householdId}`;
+            
+            // Merge with any existing polls for this household
+            const existingJson = localStorage.getItem(key);
+            let existingPolls: Poll[] = [];
+            
+            if (existingJson) {
+              try {
+                const parsed = JSON.parse(existingJson);
+                if (Array.isArray(parsed)) {
+                  existingPolls = parsed;
+                }
+              } catch (e) {
+                console.error(`Error parsing existing polls for household ${householdId}:`, e);
+              }
+            }
+            
+            // Merge polls, avoiding duplicates
+            const pollMap = new Map<number, Poll>();
+            
+            // Add existing polls first
+            existingPolls.forEach(poll => pollMap.set(poll.id, poll));
+            
+            // Then add new polls (which will override any duplicates)
+            polls.forEach(poll => pollMap.set(poll.id, poll));
+            
+            // Convert to array
+            const combinedPolls = Array.from(pollMap.values());
+            
+            // Save the combined polls
+            localStorage.setItem(key, JSON.stringify(combinedPolls));
+            console.log(`Synced ${combinedPolls.length} polls for household ${householdId}`);
+          } catch (e) {
+            console.error(`Error saving polls for household ${householdId}:`, e);
+          }
+        });
       } catch (e) {
         console.error('Failed to save poll cache to localStorage:', e);
       }
@@ -1722,76 +1999,70 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     const socket = socketRef.current;
     
     if (!socket) return;
-    
-    // Set up event listener for new polls
-    const newPollHandler = (data: any) => {
-      console.log('new_poll event received:', data);
-      if (data) {
-        // Ensure the poll has household_id
-        if (!data.household_id && currentHouseholdRef.current) {
-          data.household_id = currentHouseholdRef.current;
-        }
-        handleNewPoll(data);
-      }
-    };
-    
-    // Set up event listener for poll votes
-    const pollVoteHandler = (data: any) => {
-      console.log('poll_vote event received:', data);
+    console.log('Setting up socket event listeners...');
+
+    // Define our event handlers
+    const messageHandler = (data: any) => {
+      console.log('Received message event:', data);
       
-      // Process vote data
-      if (data) {
-        // Create a proper update object if we only have vote details
-        if (!data.poll && data.poll_id && data.voter && data.option) {
-          console.log('Converting vote data to poll update');
-          // Call handlePollUpdate with the vote information
-          handlePollUpdate({
-            id: data.poll_id,
-            voter: data.voter,
-            option: data.option
-          });
+      try {
+        // Validate message format
+        if (!data || !data.id || !data.content) {
+          console.warn('Invalid message data received:', data);
           return;
         }
         
-        // If we have the full poll object, use it
-        if (data.poll) {
-          // Ensure the poll has household_id
-          if (!data.poll.household_id && currentHouseholdRef.current) {
-            data.poll.household_id = currentHouseholdRef.current;
-          }
-          
-          // Make sure the poll has voters if this data is a vote update
-          if (data.voter && data.option && !data.poll.voters) {
-            data.poll.voters = {};
-            data.poll.voters[data.voter] = data.option;
-          }
-          
-          // Check if this is the current user's vote
-          if (data.voter && user && String(data.voter) === String(user.id)) {
-            data.poll.user_vote = data.option;
-          }
-          
-          console.log('Updating poll with vote data:', {
-            poll_id: data.poll.id,
-            voters: data.poll.voters ? Object.keys(data.poll.voters).length : 0,
-            user_vote: data.poll.user_vote
-          });
-          
-          handleNewPoll(data.poll);
-        }
+        const newMessage: Message = {
+          id: data.id,
+          content: data.content,
+          sender_id: data.sender_id || 0,
+          sender_email: data.sender_email || 'Unknown',
+          is_announcement: data.is_announcement || false,
+          created_at: data.created_at || new Date().toISOString(),
+          household_id: data.household_id || currentHouseholdRef.current,
+          image_url: data.image_url // Add support for image messages
+        };
+        
+        console.log('Processing new message:', newMessage);
+        handleNewMessage(newMessage);
+      } catch (err) {
+        console.error('Error handling message event:', err);
       }
     };
     
-    // Listen for poll events
+    const typingHandler = (data: any) => {
+      console.log('Typing event received:', data);
+      handleTypingEvent(data);
+    };
+    
+    const newPollHandler = (data: any) => {
+      console.log('New poll event received:', data);
+      handleNewPoll(data);
+    };
+    
+    const pollVoteHandler = (data: any) => {
+      console.log('Poll vote event received:', data);
+      handlePollUpdate(data);
+    };
+    
+    // Register all our event handlers
+    socket.on('message', messageHandler);
+    socket.on('typing', typingHandler);
     socket.on('new_poll', newPollHandler);
     socket.on('poll_vote', pollVoteHandler);
     
+    // Clean up event handlers on unmount
     return () => {
-      // Remove listeners when component unmounts
-      socket.off('new_poll', newPollHandler);
-      socket.off('poll_vote', pollVoteHandler);
+      console.log('Cleaning up socket event listeners...');
+      
+      if (socket) {
+        socket.off('message', messageHandler);
+        socket.off('typing', typingHandler);
+        socket.off('new_poll', newPollHandler);
+        socket.off('poll_vote', pollVoteHandler);
+      }
     };
-  }, [user, handlePollUpdate]);
+  }, [handleNewMessage, handleTypingEvent, handleNewPoll, handlePollUpdate]);
 
   // Add a new effect to rebuild user_vote property and migrate local votes when user data is available
   useEffect(() => {
@@ -1822,7 +2093,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           if (shouldUpdate && userOption) {
             // Create updated voters record
             const updatedVoters = { ...(poll.voters || {}) };
-            
+
             // Add the real user's vote
             updatedVoters[user.id] = userOption;
             
@@ -1906,7 +2177,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
           
           // Save to localStorage for this household
           try {
-            localStorage.setItem(`roomly_household_polls_${householdId}`, 
+            localStorage.setItem(`${STORAGE_KEYS.HOUSEHOLD_POLLS_PREFIX}${householdId}`, 
               JSON.stringify(updatedHouseholds[householdId]));
           } catch (e) {
             console.error(`Failed to save polls for household ${householdId}:`, e);

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { Edit2, Trash2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -20,6 +20,8 @@ import {
 import { useChatContext, Message } from '@/contexts/ChatContext';
 import { cn } from '@/lib/utils';
 import { ColorPreset } from '@/contexts/ChatThemeContext';
+import { ImageMessage } from './ImageMessage';
+import { getImage, diagnoseImage, refreshImage, deleteImage } from '@/utils/imageStorage';
 
 interface MessageItemProps {
   message: Message;
@@ -32,6 +34,13 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, isCurrentUser, compa
   const { editMessage, deleteMessage } = useChatContext();
   const [isEditing, setIsEditing] = useState(false);
   const [editedContent, setEditedContent] = useState(message.content);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [imageLoading, setImageLoading] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
+  const [diagnosisReport, setDiagnosisReport] = useState<any>(null);
+  const MAX_RETRIES = 3;
+  const imageRef = useRef<HTMLImageElement>(null);
   
   const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,8 +64,187 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, isCurrentUser, compa
     return email.split('@')[0].substring(0, 2).toUpperCase();
   };
   
-  // Add debug logs to see what's happening
-  console.log('Rendering message:', message);
+  // Load image if message contains image_url
+  useEffect(() => {
+    let isMounted = true;
+    const loadImage = async () => {
+      if (!message.image_url) return;
+      
+      if (isMounted) {
+        setImageLoading(true);
+        setImageError(false);
+      }
+
+      try {
+        console.log(`Loading image for message ${message.id}: ${message.image_url} (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+        
+        const objectUrl = await getImage(message.image_url);
+        
+        if (!objectUrl && isMounted) {
+          console.warn(`No image data found for key ${message.image_url}`);
+          setImageError(true);
+          setImageLoading(false);
+          return;
+        }
+        
+        if (isMounted) {
+          setImageUrl(objectUrl);
+          setImageLoading(false);
+          setImageError(false);
+          console.log(`Successfully loaded image for message ${message.id}`);
+        }
+      } catch (err) {
+        if (isMounted) {
+          console.error(`Error loading image for message ${message.id}:`, err);
+          setImageError(true);
+          setImageLoading(false);
+          
+          // Try to diagnose the issue
+          try {
+            const report = await diagnoseImage(message.image_url);
+            console.log('Image diagnosis report:', report);
+            setDiagnosisReport(report);
+            
+            // If image exists in DB but not in memory, try to refresh it
+            if (!report.inMemory && report.inDatabase) {
+              console.log('Image exists in database but not in memory, will auto-refresh');
+              handleForceImageRefresh();
+            }
+          } catch (diagErr) {
+            console.error('Error diagnosing image:', diagErr);
+          }
+        }
+      }
+    };
+
+    if (message.image_url && !imageUrl && retryCount < MAX_RETRIES) {
+      loadImage();
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [message.image_url, message.id, retryCount]);
+
+  // Clean up URL when component unmounts or message changes
+  useEffect(() => {
+    return () => {
+      if (imageUrl) {
+        URL.revokeObjectURL(imageUrl);
+        console.log(`Revoked object URL for message ${message.id}`);
+      }
+    };
+  }, [imageUrl, message.id]);
+
+  // Add an event listener to try reloading images when app regains focus
+  useEffect(() => {
+    const handleFocus = () => {
+      if (imageError && message.image_url && retryCount < MAX_RETRIES) {
+        console.log(`App regained focus. Attempting to reload failed image for message ${message.id}`);
+        setRetryCount(prev => prev + 1);
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [imageError, message.image_url, message.id, retryCount]);
+
+  // Handle manual refresh of image
+  const handleForceImageRefresh = async () => {
+    if (!message.image_url) return;
+    
+    setImageLoading(true);
+    setImageError(false);
+    
+    try {
+      console.log(`Manually refreshing image for message ${message.id}: ${message.image_url}`);
+      
+      const objectUrl = await refreshImage(message.image_url);
+      
+      if (objectUrl) {
+        // If we had a previous object URL, revoke it
+        if (imageUrl) {
+          URL.revokeObjectURL(imageUrl);
+        }
+        
+        setImageUrl(objectUrl);
+        setImageLoading(false);
+        setImageError(false);
+        console.log(`Successfully refreshed image for message ${message.id}`);
+      } else {
+        throw new Error('Refresh failed to return a valid URL');
+      }
+    } catch (err) {
+      console.error(`Error refreshing image for message ${message.id}:`, err);
+      setImageError(true);
+      setImageLoading(false);
+    }
+  };
+  
+  const hasImage = !!message.image_url;
+  
+  const renderImage = () => {
+    if (!message.image_url) return null;
+    
+    if (imageLoading) {
+      return (
+        <div className="mt-2 rounded-md bg-gray-200 animate-pulse w-64 h-64 flex items-center justify-center">
+          <span className="text-sm text-gray-500">Loading image...</span>
+        </div>
+      );
+    }
+    
+    if (imageError) {
+      return (
+        <div className="mt-2 rounded-md bg-gray-100 border border-gray-300 w-64 h-auto flex flex-col items-center justify-center p-4">
+          <span className="text-sm text-gray-500 mb-2">Failed to load image</span>
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleForceImageRefresh}
+            disabled={imageLoading}
+          >
+            Retry loading image
+          </Button>
+          {diagnosisReport && (
+            <div className="mt-2 text-xs text-gray-400 max-w-full overflow-hidden">
+              <p>Image key: {diagnosisReport.key}</p>
+              <p>In memory: {diagnosisReport.inMemory ? 'Yes' : 'No'}</p>
+              <p>In database: {diagnosisReport.inDatabase ? 'Yes' : 'No'}</p>
+            </div>
+          )}
+        </div>
+      );
+    }
+    
+    if (imageUrl) {
+      return (
+        <div className="mt-2 max-w-sm overflow-hidden">
+          <img 
+            ref={imageRef}
+            src={imageUrl} 
+            alt={`Image shared by ${message.sender_email?.split('@')[0]}`}
+            className="rounded-md max-h-96 max-w-full object-contain"
+            onError={(e) => {
+              console.error(`Image load error for ${message.id}: ${message.image_url}`);
+              setImageError(true);
+              
+              // Auto-retry if we haven't exceeded the max retries
+              if (retryCount < MAX_RETRIES - 1) {
+                console.log(`Auto-retrying image load for message ${message.id}`);
+                setRetryCount(prev => prev + 1);
+              }
+            }}
+          />
+        </div>
+      );
+    }
+    
+    return null;
+  };
   
   return (
     <div className={cn(
@@ -113,6 +301,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, isCurrentUser, compa
             !message.is_announcement && isCurrentUser && (colorPreset?.userMessageBg || "bg-primary text-primary-foreground"),
             !message.is_announcement && !isCurrentUser && (colorPreset?.messageCard || ""),
             !message.is_announcement && (colorPreset?.border || ""),
+            hasImage && "p-2", // Less padding for image messages
             compact && "p-2 text-sm"
           )}>
             {message.is_announcement && (
@@ -146,7 +335,15 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, isCurrentUser, compa
                 </div>
               </form>
             ) : (
-              <p>{message.content}</p>
+              <div className="space-y-2">
+                {/* Message content */}
+                {message.content && (
+                  <p className={hasImage ? "mb-2" : ""}>{message.content}</p>
+                )}
+                
+                {/* Image content */}
+                {renderImage()}
+              </div>
             )}
           </Card>
           
@@ -184,7 +381,17 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, isCurrentUser, compa
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
                       <AlertDialogAction 
-                        onClick={() => deleteMessage(message.id)}
+                        onClick={() => {
+                          // If this is an image message, clean up the image from storage
+                          if (message.image_url?.startsWith('img_')) {
+                            try {
+                              deleteImage(message.image_url);
+                            } catch (error) {
+                              console.error('Error deleting image:', error);
+                            }
+                          }
+                          deleteMessage(message.id);
+                        }}
                         className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                       >
                         Delete
