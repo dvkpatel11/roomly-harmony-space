@@ -1,11 +1,12 @@
 import { cn } from "@/lib/utils";
 import { Task } from "@/types/task";
 import { formatDistanceToNow } from "date-fns";
-import { CheckCircle, Clock, MoreVertical, RefreshCcw, UserPlus } from "lucide-react";
+import { CheckCircle2, Clock, MoreVertical, RefreshCcw, UserPlus } from "lucide-react";
 import { useState } from "react";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "../ui/tooltip";
 import { SwapTaskDialog } from "./SwapTaskDialog";
 import { UpdateTaskDialog } from "./UpdateTaskDialog";
 
@@ -29,7 +30,6 @@ export function TaskItem({ task, onComplete, onDelete, onUpdate, onSwap, classNa
   const handleDelete = async () => {
     try {
       await onDelete(task.id);
-      onUpdate();
     } catch (err) {
       console.error("Failed to delete task:", err);
     }
@@ -62,15 +62,31 @@ export function TaskItem({ task, onComplete, onDelete, onUpdate, onSwap, classNa
   return (
     <Card className={cn("relative", className)}>
       <CardContent className="flex items-center gap-4 p-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn("shrink-0", getStatusColor())}
-          onClick={handleComplete}
-          disabled={task.status === "completed"}
-        >
-          <CheckCircle className="h-5 w-5" />
-        </Button>
+        {task.status !== "completed" && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "shrink-0 hover:bg-green-50 hover:text-green-600 dark:hover:bg-green-950 transition-colors",
+                    getStatusColor()
+                  )}
+                  onClick={handleComplete}
+                >
+                  <CheckCircle2 className="h-5 w-5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Mark as completed</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        {task.status === "completed" && (
+          <div className="w-9 h-9 flex items-center justify-center">
+            <CheckCircle2 className="h-5 w-5 text-green-500" />
+          </div>
+        )}
         <div className="flex-grow min-w-0">
           <div className="flex items-center gap-2">
             <h3 className="font-medium truncate">{task.title}</h3>

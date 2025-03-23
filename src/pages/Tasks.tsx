@@ -3,14 +3,13 @@ import { CreateTaskDialog } from "@/components/tasks/CreateTaskDialog";
 import { TaskList } from "@/components/tasks/TaskList";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useHousehold } from "@/contexts/HouseholdContext";
 import { useTasks } from "@/hooks/use-tasks";
 import { TaskFrequency, TaskStatus } from "@/types/task";
-import { CheckCheck, Plus, Search } from "lucide-react";
+import { CheckCheck, Plus } from "lucide-react";
 import React, { useCallback, useMemo, useState } from "react";
 
 const Tasks: React.FC = () => {
@@ -98,10 +97,19 @@ const Tasks: React.FC = () => {
 
         {/* Filters and Search */}
         <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative w-full sm:w-80">
+          {/* <div className="relative w-full sm:w-80">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input placeholder="Search tasks..." className="pl-9" value={searchQuery} onChange={handleSearchChange} />
-          </div>
+          </div> */}
+
+          {/* Task Tabs */}
+          <Tabs defaultValue="all" onValueChange={(value) => setSelectedTab(value as "all" | "active" | "completed")}>
+            <TabsList>
+              <TabsTrigger value="all">All Tasks</TabsTrigger>
+              <TabsTrigger value="active">Active</TabsTrigger>
+              <TabsTrigger value="completed">Completed</TabsTrigger>
+            </TabsList>
+          </Tabs>
 
           <div className="flex gap-2 ml-auto">
             <Select value={frequency} onValueChange={handleFrequencyChange}>
@@ -118,15 +126,6 @@ const Tasks: React.FC = () => {
             </Select>
           </div>
         </div>
-
-        {/* Task Tabs */}
-        <Tabs defaultValue="all" onValueChange={(value) => setSelectedTab(value as "all" | "active" | "completed")}>
-          <TabsList>
-            <TabsTrigger value="all">All Tasks</TabsTrigger>
-            <TabsTrigger value="active">Active</TabsTrigger>
-            <TabsTrigger value="completed">Completed</TabsTrigger>
-          </TabsList>
-        </Tabs>
 
         {/* Task List */}
         <Card>

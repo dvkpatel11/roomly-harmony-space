@@ -1,11 +1,12 @@
 import { useTasks } from "@/hooks/use-tasks";
 import { CreateTaskRequest } from "@/types/task";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { CalendarIcon } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Button } from "../ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "../ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "../ui/form";
 import { Input } from "../ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Switch } from "../ui/switch";
@@ -14,8 +15,8 @@ import { Textarea } from "../ui/textarea";
 interface CreateTaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  householdId: string;
   onTaskCreated: () => void;
+  householdId: string;
 }
 
 const createTaskSchema = z.object({
@@ -30,21 +31,27 @@ const createTaskSchema = z.object({
 
 type CreateTaskFormData = z.infer<typeof createTaskSchema>;
 
-export function CreateTaskDialog({ open, onOpenChange, householdId, onTaskCreated }: CreateTaskDialogProps) {
+export function CreateTaskDialog({ open, onOpenChange, onTaskCreated, householdId }: CreateTaskDialogProps) {
   const { createTask } = useTasks(householdId);
   const form = useForm<CreateTaskFormData>({
     resolver: zodResolver(createTaskSchema),
     defaultValues: {
+      title: "",
+      description: "",
       frequency: "once",
       is_recurring: false,
+      interval_days: 7,
     },
   });
+
+  const frequency = form.watch("frequency");
+  const isRecurring = form.watch("is_recurring");
 
   const onSubmit = async (data: CreateTaskFormData) => {
     try {
       const request: CreateTaskRequest = {
         title: data.title,
-        description: data.description,
+        description: data.description || "",
         frequency: data.frequency,
         due_date: data.due_date,
         is_recurring: data.is_recurring,
@@ -53,15 +60,13 @@ export function CreateTaskDialog({ open, onOpenChange, householdId, onTaskCreate
       };
 
       await createTask(request);
-      onTaskCreated();
       form.reset();
+      onTaskCreated();
+      onOpenChange(false);
     } catch (err) {
       console.error("Failed to create task:", err);
     }
   };
-
-  const isRecurring = form.watch("is_recurring");
-  const frequency = form.watch("frequency");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -78,7 +83,7 @@ export function CreateTaskDialog({ open, onOpenChange, householdId, onTaskCreate
                 <FormItem>
                   <FormLabel>Title</FormLabel>
                   <FormControl>
-                    <Input placeholder="Enter task title" {...field} />
+                    <Input {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -92,7 +97,7 @@ export function CreateTaskDialog({ open, onOpenChange, householdId, onTaskCreate
                 <FormItem>
                   <FormLabel>Description</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Enter task description (optional)" {...field} />
+                    <Textarea {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -127,73 +132,78 @@ export function CreateTaskDialog({ open, onOpenChange, householdId, onTaskCreate
               control={form.control}
               name="due_date"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="flex flex-col">
                   <FormLabel>Due Date</FormLabel>
-                  <FormControl>
-                    <Input type="datetime-local" {...field} />
-                  </FormControl>
+                  <div className="relative">
+                    <FormControl>
+                      <Input type="datetime-local" {...field} value={field.value || ""} className="pr-10" />
+                    </FormControl>
+                    <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
-            {frequency !== "once" && (
-              <FormField
-                control={form.control}
-                name="is_recurring"
-                render={({ field }) => (
-                  <FormItem className="flex items-center justify-between">
-                    <FormLabel>Make Recurring</FormLabel>
-                    <FormControl>
-                      <Switch checked={field.value} onCheckedChange={field.onChange} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-
-            {isRecurring && (
+            {frequency === "once" && (
               <>
                 <FormField
                   control={form.control}
-                  name="interval_days"
+                  name="is_recurring"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Interval (days)</FormLabel>
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Make Recurring</FormLabel>
+                        <FormDescription>Set a custom interval for this task to repeat</FormDescription>
+                      </div>
                       <FormControl>
-                        <Input
-                          type="number"
-                          min={1}
-                          {...field}
-                          onChange={(e) => field.onChange(parseInt(e.target.value))}
-                        />
+                        <Switch checked={field.value} onCheckedChange={field.onChange} />
                       </FormControl>
-                      <FormMessage />
                     </FormItem>
                   )}
                 />
-
-                <FormField
-                  control={form.control}
-                  name="end_date"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>End Date</FormLabel>
-                      <FormControl>
-                        <Input type="datetime-local" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {isRecurring && (
+                  <>
+                    <FormField
+                      control={form.control}
+                      name="interval_days"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Repeat Every (Days)</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="number"
+                              min={1}
+                              {...field}
+                              onChange={(e) => field.onChange(parseInt(e.target.value))}
+                            />
+                          </FormControl>
+                          <FormDescription>Enter the number of days between repetitions</FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </>
+                )}
               </>
             )}
-
+            <FormField
+              control={form.control}
+              name="end_date"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>End Date (Optional)</FormLabel>
+                  <div className="relative">
+                    <FormControl>
+                      <Input type="date" {...field} value={field.value || ""} className="pr-10" />
+                    </FormControl>
+                    <CalendarIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  </div>
+                  <FormDescription>Leave empty for no end date</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
               <Button type="submit">Create Task</Button>
             </DialogFooter>
           </form>
