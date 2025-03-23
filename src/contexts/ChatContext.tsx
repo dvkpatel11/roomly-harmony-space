@@ -23,6 +23,8 @@ export interface Poll {
   created_at?: string;
   household_id?: string;
   user_vote?: string;
+  voters?: Record<string, string>;
+  total_votes?: number;
 }
 
 export interface TypingUser {
@@ -832,14 +834,76 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     }
   };
   
-  const handlePollUpdate = (data: { poll_id: number; options: Record<string, number> }) => {
-    setPollCache(prevCache => ({
-      ...prevCache,
-      polls: prevCache.polls.map((poll) => (
-        poll.id === data.poll_id ? { ...poll, options: data.options } : poll
-      ))
-    }));
-  };
+  const handlePollUpdate = useCallback((data: any) => {
+    console.log('Poll update received:', data);
+    if (!data || !data.id) return;
+    
+    // Find and update the poll in our cache
+    setPollCache(prev => {
+      const updatedPolls = prev.polls.map(poll => {
+        if (String(poll.id) === String(data.id)) {
+          // Update with new options/votes
+          const updatedPoll = {
+            ...poll,
+            options: data.options || poll.options,
+          };
+          
+          // If this user is the voter, record their vote
+          if (data.voter && user && String(data.voter) === String(user.id)) {
+            updatedPoll.user_vote = data.option;
+          }
+          
+          // Update voters record if provided
+          if (data.voters) {
+            updatedPoll.voters = data.voters;
+          }
+          
+          return updatedPoll;
+        }
+        return poll;
+      });
+      
+      return {
+        ...prev,
+        polls: updatedPolls
+      };
+    });
+    
+    // Also update household-specific cache if needed
+    const currentHouseholdId = currentHouseholdRef.current;
+    if (currentHouseholdId) {
+      setPollsByHousehold(prev => {
+        const householdPolls = prev[currentHouseholdId] || [];
+        const updatedHouseholdPolls = householdPolls.map(poll => {
+          if (String(poll.id) === String(data.id)) {
+            // Update with new options/votes
+            const updatedPoll = {
+              ...poll,
+              options: data.options || poll.options,
+            };
+            
+            // If this user is the voter, record their vote
+            if (data.voter && user && String(data.voter) === String(user.id)) {
+              updatedPoll.user_vote = data.option;
+            }
+            
+            // Update voters record if provided
+            if (data.voters) {
+              updatedPoll.voters = data.voters;
+            }
+            
+            return updatedPoll;
+          }
+          return poll;
+        });
+        
+        return {
+          ...prev,
+          [currentHouseholdId]: updatedHouseholdPolls
+        };
+      });
+    }
+  }, [user]);
   
   const handleTypingEvent = (user: TypingUser) => {
     console.log('User typing:', user);
@@ -1405,10 +1469,18 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
             const updatedOptions = { ...poll.options };
             updatedOptions[option] = (updatedOptions[option] || 0) + 1;
             
+            // Create or update voters record
+            const updatedVoters = { ...(poll.voters || {}) };
+            if (user) {
+              updatedVoters[user.id] = option;
+            }
+            
             return {
               ...poll,
               options: updatedOptions,
-              user_vote: option // Add user's vote to the poll to track voting state
+              user_vote: option, // Add user's vote to the poll to track voting state
+              voters: updatedVoters, // Update voters record
+              total_votes: (poll.total_votes || 0) + 1
             };
           }
           return poll;
@@ -1433,10 +1505,18 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
               const updatedOptions = { ...poll.options };
               updatedOptions[option] = (updatedOptions[option] || 0) + 1;
               
+              // Create or update voters record
+              const updatedVoters = { ...(poll.voters || {}) };
+              if (user) {
+                updatedVoters[user.id] = option;
+              }
+              
               return {
                 ...poll,
                 options: updatedOptions,
-                user_vote: option // Add user's vote to the poll to track voting state
+                user_vote: option, // Add user's vote to the poll to track voting state
+                voters: updatedVoters, // Update voters record
+                total_votes: (poll.total_votes || 0) + 1
               };
             }
             return poll;
@@ -1447,6 +1527,45 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
             [currentHouseholdId]: updatedHouseholdPolls
           };
         });
+      }
+      
+      // Save updated polls to localStorage immediately
+      try {
+        const updatedCache = loadPollsFromLocalStorage() || pollCache;
+        const updatedPolls = updatedCache.polls.map(poll => {
+          // Compare as strings to handle both number and string IDs
+          const pollIdStr = String(poll.id);
+          const targetIdStr = String(pollId);
+          if (pollIdStr === targetIdStr) {
+            // Create a new options object with the vote added
+            const updatedOptions = { ...poll.options };
+            updatedOptions[option] = (updatedOptions[option] || 0) + 1;
+            
+            // Create or update voters record
+            const updatedVoters = { ...(poll.voters || {}) };
+            if (user) {
+              updatedVoters[user.id] = option;
+            }
+            
+            return {
+              ...poll,
+              options: updatedOptions,
+              user_vote: option,
+              voters: updatedVoters,
+              total_votes: (poll.total_votes || 0) + 1
+            };
+          }
+          return poll;
+        });
+        
+        localStorage.setItem(STORAGE_KEYS.POLLS, JSON.stringify({
+          ...updatedCache,
+          polls: updatedPolls
+        }));
+        
+        console.log('Saved updated poll vote to localStorage');
+      } catch (e) {
+        console.error('Failed to save poll vote to localStorage:', e);
       }
     };
     

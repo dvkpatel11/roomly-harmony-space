@@ -25,6 +25,7 @@ const CreatePollDialog: React.FC<CreatePollDialogProps> = ({ householdId }) => {
   const [question, setQuestion] = useState('');
   const [options, setOptions] = useState<string[]>(['', '']);
   const [expiryDays, setExpiryDays] = useState('1');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   const handleAddOption = () => {
     if (options.length < 10) {
@@ -44,6 +45,11 @@ const CreatePollDialog: React.FC<CreatePollDialogProps> = ({ householdId }) => {
     const newOptions = [...options];
     newOptions[index] = value;
     setOptions(newOptions);
+    
+    // Clear error when user makes changes
+    if (errorMessage) {
+      setErrorMessage(null);
+    }
   };
   
   const handleSubmit = (e: React.FormEvent) => {
@@ -51,6 +57,13 @@ const CreatePollDialog: React.FC<CreatePollDialogProps> = ({ householdId }) => {
     
     // Filter out empty options
     const validOptions = options.filter(opt => opt.trim() !== '');
+    
+    // Check for duplicate options
+    const uniqueOptions = new Set(validOptions.map(opt => opt.trim().toLowerCase()));
+    if (uniqueOptions.size !== validOptions.length) {
+      setErrorMessage("Please remove duplicate options");
+      return;
+    }
     
     if (question.trim() && validOptions.length >= 2) {
       // Calculate expiry date - default to 1 day if invalid
@@ -63,6 +76,7 @@ const CreatePollDialog: React.FC<CreatePollDialogProps> = ({ householdId }) => {
       setQuestion('');
       setOptions(['', '']);
       setExpiryDays('1');
+      setErrorMessage(null);
       setIsOpen(false);
     }
   };
@@ -123,6 +137,12 @@ const CreatePollDialog: React.FC<CreatePollDialogProps> = ({ householdId }) => {
                   )}
                 </div>
               ))}
+              
+              {errorMessage && (
+                <div className="text-sm font-medium text-destructive mt-2">
+                  {errorMessage}
+                </div>
+              )}
               
               {options.length < 10 && (
                 <Button

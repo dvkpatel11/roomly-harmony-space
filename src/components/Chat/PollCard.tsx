@@ -23,6 +23,7 @@ const PollCard: React.FC<PollCardProps> = ({ poll, colorPreset }) => {
     // Check if this poll already has a user_vote property
     return Boolean(poll.user_vote);
   });
+  const [showVoters, setShowVoters] = useState(false);
   
   const totalVotes = Object.values(poll.options).reduce((sum, count) => sum + count, 0);
   const isPollExpired = new Date(poll.expires_at) < new Date();
@@ -85,7 +86,13 @@ const PollCard: React.FC<PollCardProps> = ({ poll, colorPreset }) => {
                   <span>{option}</span>
                   <span>{getPercentage(count)}% ({count} votes)</span>
                 </div>
-                <Progress value={getPercentage(count)} className="h-2" />
+                <Progress 
+                  value={getPercentage(count)} 
+                  className={cn(
+                    "h-2",
+                    poll.user_vote === option ? "bg-primary" : ""
+                  )} 
+                />
               </div>
             ))}
             {poll.user_vote && (
@@ -93,6 +100,28 @@ const PollCard: React.FC<PollCardProps> = ({ poll, colorPreset }) => {
                 You voted for: {poll.user_vote}
               </div>
             )}
+            
+            {showVoters && poll.voters && (
+              <div className="mt-4 border-t pt-3">
+                <h4 className="text-sm font-medium mb-2">Votes:</h4>
+                <ul className="text-sm space-y-1">
+                  {Object.entries(poll.voters).map(([voterId, voterOption]) => (
+                    <li key={voterId}>
+                      {user && String(voterId) === String(user.id) ? 'You' : voterId}: {voterOption}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="w-full mt-2"
+              onClick={() => setShowVoters(!showVoters)}
+            >
+              {showVoters ? "Hide votes" : "Show votes"}
+            </Button>
           </div>
         ) : (
           // Voting view
