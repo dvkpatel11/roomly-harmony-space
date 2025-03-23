@@ -46,10 +46,14 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, isCurrentUser }) => 
     }
   };
   
-  // Generate initials for avatar fallbacks
-  const getInitials = (email: string) => {
+  // Generate initials for avatar fallbacks with null/undefined check
+  const getInitials = (email: string | undefined) => {
+    if (!email) return 'NA'; // Return default if email is undefined/null
     return email.split('@')[0].substring(0, 2).toUpperCase();
   };
+  
+  // Add debug logs to see what's happening
+  console.log('Rendering message:', message);
   
   return (
     <div className={cn(
@@ -57,7 +61,11 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, isCurrentUser }) => 
       isCurrentUser ? "flex-row-reverse" : "flex-row"
     )}>
       <Avatar className="h-8 w-8">
-        <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${message.sender_email}`} />
+        {message.sender_email ? (
+          <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${message.sender_email}`} />
+        ) : (
+          <AvatarImage src="https://api.dicebear.com/7.x/initials/svg?seed=NA" />
+        )}
         <AvatarFallback>{getInitials(message.sender_email)}</AvatarFallback>
       </Avatar>
       
@@ -70,7 +78,7 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, isCurrentUser }) => 
             "text-sm font-medium",
             isCurrentUser ? "ml-auto" : "mr-auto"
           )}>
-            {message.sender_email.split('@')[0]}
+            {message.sender_email ? message.sender_email.split('@')[0] : 'Unknown User'}
           </span>
           <span className="text-xs text-muted-foreground">
             {formatTime(message.created_at)}
@@ -170,4 +178,4 @@ const MessageItem: React.FC<MessageItemProps> = ({ message, isCurrentUser }) => 
   );
 };
 
-export default MessageItem; 
+export default MessageItem;

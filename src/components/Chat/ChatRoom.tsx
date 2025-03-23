@@ -63,6 +63,9 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ householdId, householdName }) => {
   // Get effective token (either from auth context or localStorage)
   const token = authToken || localToken;
   
+  // Ensure messages is an array
+  const safeMessages = Array.isArray(messages) ? messages : [];
+  
   // Debounced function to join household with retry limit
   const debouncedJoinHousehold = useCallback((id: string) => {
     // Clear any existing debounce timer
@@ -246,7 +249,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ householdId, householdName }) => {
       sendMessage(messageInput, isAnnouncement);
       setMessageInput('');
       setIsAnnouncement(false);
-      stopTyping(); // Stop typing indicator when message is sent
+      stopTyping();
       
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
@@ -334,7 +337,7 @@ const ChatRoom: React.FC<ChatRoomProps> = ({ householdId, householdName }) => {
               <p>No messages yet. Start the conversation!</p>
             </div>
           ) : (
-            messages.map((message) => (
+            safeMessages.map((message) => (
               <MessageItem 
                 key={message.id} 
                 message={message} 

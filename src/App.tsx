@@ -12,6 +12,7 @@ import { getAuth } from "@/services/service-factory";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AnimatePresence } from "framer-motion";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import ChatRoom from './components/Chat/ChatRoom';
 
 // Pages
 import Login from "./pages/Auth/Login";
@@ -87,6 +88,9 @@ const AuthenticatedApp = () => {
   const { isNewUser, households, loading } = useHousehold();
   const location = useLocation();
 
+  // Assuming you want to use the first household for the chat
+  const currentHousehold = households[0]; // Get the first household or handle accordingly
+
   console.log("[AuthenticatedApp] Current state:", {
     isNewUser,
     householdsCount: households.length,
@@ -130,89 +134,107 @@ const AuthenticatedApp = () => {
   }
 
   console.log("[AuthenticatedApp] Proceeding with normal render");
+  console.log("[AuthenticatedApp] Current household:", currentHousehold);
+  console.log("[AuthenticatedApp] Loading state:", loading);
   return (
     <DataProvider>
-      <AnimatePresence mode="wait">
-        <Routes location={location} key={location.pathname}>
-          {/* Protected routes */}
-          <Route
-            path="/dashboard"
-            element={
-              <AppLayout>
-                <Dashboard />
-              </AppLayout>
-            }
-          />
-          <Route
-            path="/tasks"
-            element={
-              <AppLayout>
-                <Tasks />
-              </AppLayout>
-            }
-          />
-          <Route
-            path="/profile"
-            element={
-              <AppLayout>
-                <Profile />
-              </AppLayout>
-            }
-          />
+      <ChatProvider>
+        <AnimatePresence mode="sync">
+          <Routes location={location} key={location.pathname}>
+            {/* Protected routes */}
+            <Route
+              path="/dashboard"
+              element={
+                <AppLayout>
+                  <Dashboard />
+                </AppLayout>
+              }
+            />
+            <Route
+              path="/tasks"
+              element={
+                <AppLayout>
+                  <Tasks />
+                </AppLayout>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <AppLayout>
+                  <Profile />
+                </AppLayout>
+              }
+            />
 
-          {/* Household Management Routes */}
-          <Route path="/household/welcome" element={<WelcomePage />} />
-          <Route
-            path="/household"
-            element={
-              <AppLayout>
-                <Household />
-              </AppLayout>
-            }
-          />
-          <Route path="/household/create" element={<CreateHouseholdPage />} />
-          <Route
-            path="/household/settings"
-            element={
-              <AppLayout>
-                <HouseholdSettings />
-              </AppLayout>
-            }
-          />
-          <Route
-            path="/household/members"
-            element={
-              <AppLayout>
-                <HouseholdMembers />
-              </AppLayout>
-            }
-          />
-          <Route
-            path="/household/invites"
-            element={
-              <AppLayout>
-                <HouseholdInvites />
-              </AppLayout>
-            }
-          />
-          <Route
-            path="/household/roles"
-            element={
-              <AppLayout>
-                <HouseholdRoles />
-              </AppLayout>
-            }
-          />
+            {/* Household Management Routes */}
+            <Route path="/household/welcome" element={<WelcomePage />} />
+            <Route
+              path="/household"
+              element={
+                <AppLayout>
+                  <Household />
+                </AppLayout>
+              }
+            />
+            <Route path="/household/create" element={<CreateHouseholdPage />} />
+            <Route
+              path="/household/settings"
+              element={
+                <AppLayout>
+                  <HouseholdSettings />
+                </AppLayout>
+              }
+            />
+            <Route
+              path="/household/members"
+              element={
+                <AppLayout>
+                  <HouseholdMembers />
+                </AppLayout>
+              }
+            />
+            <Route
+              path="/household/invites"
+              element={
+                <AppLayout>
+                  <HouseholdInvites />
+                </AppLayout>
+              }
+            />
+            <Route
+              path="/household/roles"
+              element={
+                <AppLayout>
+                  <HouseholdRoles />
+                </AppLayout>
+              }
+            />
 
-          {/* Redirect to dashboard if accessing root while authenticated */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/login" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/register" element={<Navigate to="/household/welcome" replace />} />
+            {/* Redirect to dashboard if accessing root while authenticated */}
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/login" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/register" element={<Navigate to="/household/welcome" replace />} />
 
-          {/* Catch all route */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </AnimatePresence>
+            {/* Catch all route */}
+            <Route path="*" element={<NotFound />} />
+
+            <Route
+              path="/chat"
+              element={
+                <AppLayout>
+                  {currentHousehold && (
+                    <ChatRoom 
+                      householdId={currentHousehold.id} 
+                      householdName={currentHousehold.name} 
+                    />
+                  )}
+                </AppLayout>
+              }
+            />
+          </Routes>
+        </AnimatePresence>
+      </ChatProvider>
     </DataProvider>
   );
 };
@@ -245,9 +267,13 @@ const Root = () => {
 
   // If authenticated, wrap with HouseholdProvider
   return (
-    <HouseholdProvider>
-      <AuthenticatedApp />
-    </HouseholdProvider>
+    <AuthProvider apiUrl={API_URL}>
+      <HouseholdProvider>
+        <ChatProvider>
+          <AuthenticatedApp />
+        </ChatProvider>
+      </HouseholdProvider>
+    </AuthProvider>
   );
 };
 

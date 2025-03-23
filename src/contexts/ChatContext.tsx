@@ -40,7 +40,7 @@ interface ChatContextType {
   deleteMessage: (messageId: number) => void;
   startTyping: () => void;
   stopTyping: () => void;
-  createPoll: (question: string, options: string[], expiresAt: string) => void;
+  createPoll: (question: string, options: string[], expiryDate: string) => void;
   votePoll: (pollId: number, option: string) => void;
   currentHouseholdId: string | null;
   error: string | null;
@@ -142,10 +142,52 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
         
         // Message and data event handlers
         if (newSocket) {
-          newSocket.on('message', handleNewMessage);
-          newSocket.on('poll_created', handleNewPoll);
+          // CHANGED FROM 'message' to 'new_message'
+          newSocket.on('new_message', (message) => {
+            console.log('Received new message from server:', message);
+            handleNewMessage(message);
+          });
+          
+          newSocket.on('new_poll', (poll) => {
+            console.log('New poll received:', poll);
+            handleNewPoll(poll);
+          });
           newSocket.on('poll_updated', handlePollUpdate);
-          newSocket.on('typing', handleTypingEvent);
+          newSocket.on('user_typing', handleTypingEvent);
+          newSocket.on('user_typing_stopped', (data) => {
+            console.log('User stopped typing:', data);
+            setTypingUsers(prev => prev.filter(user => user.user_id !== data.user_id));
+          });
+          
+          // Add listeners for message updates and deletions
+          newSocket.on('message_edited', (data) => {
+            console.log('Message edited:', data);
+            setMessages(prevMessages => 
+              prevMessages.map(msg => 
+                msg.id === data.id 
+                  ? { ...msg, content: data.content, edited_at: data.edited_at } 
+                  : msg
+              )
+            );
+          });
+          
+          newSocket.on('message_deleted', (data) => {
+            console.log('Message deleted:', data);
+            setMessages(prevMessages => 
+              prevMessages.filter(msg => msg.id !== data.id)
+            );
+          });
+          
+          // Add error handler
+          newSocket.on('error', (error) => {
+            console.error('Socket error:', error);
+            setError(`Socket error: ${error.message || 'Unknown error'}`);
+          });
+          
+          newSocket.on('poll_deleted', (data) => {
+            console.log('Poll deleted:', data);
+            setPolls(prevPolls => prevPolls.filter(poll => poll.id !== data.poll_id));
+          });
         }
         
         newSocket.on('disconnect', () => {
@@ -170,10 +212,14 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
             newSocket.off('connect');
             newSocket.off('authenticated');
             newSocket.off('unauthorized');
-            newSocket.off('message');
-            newSocket.off('poll_created');
+            newSocket.off('new_message'); // CHANGED FROM 'message'
+            newSocket.off('new_poll');
             newSocket.off('poll_updated');
-            newSocket.off('typing');
+            newSocket.off('user_typing');
+            newSocket.off('user_typing_stopped');
+            newSocket.off('message_edited');
+            newSocket.off('message_deleted');
+            newSocket.off('error');
             newSocket.off('disconnect');
             newSocket.off('connect_error');
             
@@ -203,16 +249,21 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   
   // Event handlers
   const handleNewMessage = (message: Message) => {
+    console.log('Processing new message in handleNewMessage:', message);
     setMessages(prevMessages => {
       // Check if message already exists to prevent duplicates
       const exists = prevMessages.some(m => m.id === message.id);
-      if (exists) return prevMessages;
+      if (exists) {
+        console.log('Message already exists, skipping:', message.id);
+        return prevMessages;
+      }
+      console.log('Adding new message to state:', message);
       return [...prevMessages, message];
     });
   };
   
   const handleNewPoll = (poll: Poll) => {
-    setPolls(prevPolls => [...prevPolls, poll]);
+    setPolls((prevPolls) => [...prevPolls, poll]);
   };
   
   const handlePollUpdate = (data: { poll_id: number; options: Record<string, number> }) => {
@@ -222,6 +273,7 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   };
   
   const handleTypingEvent = (user: TypingUser) => {
+    console.log('User typing:', user);
     setTypingUsers((prev) => [...prev.filter((u) => u.user_id !== user.user_id), user]);
   };
 
@@ -243,6 +295,8 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     // Check if already in the same household
     if (currentHouseholdRef.current === householdId) {
       console.log(`Already in household ${householdId}, skipping join`);
+      // Even if we skip joining, make sure we load messages
+      loadMessagesForHousehold(householdId);
       return;
     }
     
@@ -258,60 +312,80 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       setLoading(true);
       console.log(`Joining household ${householdId} with socket ID: ${socket.id}`);
       
-      // Emit join event and wait for response
-      socket.emit('join', { household_id: householdId }, (response: any) => {
-        // Check if response exists before accessing properties
-        if (response && response.error) {
-          console.error('Error joining household:', response.error);
-          setError(`Failed to join chat: ${response.error}`);
-          setLoading(false);
-        } else {
-          // Handle successful response or null response
-          console.log('Successfully joined household:', response || 'No response data');
-          setCurrentHouseholdId(householdId);
-          currentHouseholdRef.current = householdId;
-        }
-        
-        // Mark join attempt as complete
-        joinAttemptInProgressRef.current = false;
-      });
-      
-      // Retrieve message history with error handling
-      try {
-        const accessToken = token;
-        
-        if (!accessToken) {
-          throw new Error('No access token available');
-        }
-        
-        const response = await fetch(`${apiUrl}/households/${householdId}/messages`, {
-          headers: {
-            'Authorization': `Bearer ${accessToken}`
+      // Use a Promise to handle the join event
+      const joinPromise = new Promise<void>((resolve, reject) => {
+        socket.emit('join_household', { 
+          token,
+          household_id: householdId 
+        }, (response: any) => {
+          if (response && response.error) {
+            console.error('Error joining household:', response.error);
+            reject(new Error(`Failed to join chat: ${response.error}`));
+          } else {
+            console.log('Successfully joined household:', response || 'No response data');
+            setCurrentHouseholdId(householdId);
+            currentHouseholdRef.current = householdId;
+            resolve();
           }
         });
         
-        if (!response.ok) {
-          throw new Error(`Failed to fetch messages: ${response.status} ${response.statusText}`);
-        }
-        
-        const data = await response.json();
-        console.log(`Loaded ${data.length} messages for household ${householdId}`);
-        setMessages(data);
-        
-        // Also fetch polls for this household
-        // ... existing poll fetching code ...
-        
-        setLoading(false);
-      } catch (error) {
-        console.error('Failed to load messages:', error);
-        // Don't set error state here to avoid disrupting the UI if just history fails
-        setLoading(false);
-      }
+        // Set a timeout in case the server never responds
+        setTimeout(() => {
+          reject(new Error('Join household timeout - no response from server'));
+        }, 10000);
+      });
+      
+      // Wait for join to complete
+      await joinPromise;
+      
+      // Load messages after successful join
+      await loadMessagesForHousehold(householdId);
+      
     } catch (err) {
       console.error('Error in joinHousehold:', err);
-      setError('Failed to join household chat');
+      setError('Failed to join household chat: ' + (err instanceof Error ? err.message : String(err)));
+    } finally {
       setLoading(false);
       joinAttemptInProgressRef.current = false;
+    }
+  };
+  
+  // Helper function to load messages for a household
+  const loadMessagesForHousehold = async (householdId: string) => {
+    try {
+      const accessToken = token;
+      
+      if (!accessToken) {
+        throw new Error('No access token available');
+      }
+      
+      const response = await fetch(`${apiUrl}/households/${householdId}/messages`, {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch messages: ${response.status} ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      console.log(`Loaded ${data.messages?.length || 0} messages for household ${householdId}`);
+      
+      // Make sure we're setting the messages from the response properly
+      if (data.messages && Array.isArray(data.messages)) {
+        setMessages(data.messages);
+      } else {
+        console.error('Unexpected message data format:', data);
+        setMessages([]);
+      }
+      
+      // Also fetch polls for this household
+      // ... existing poll fetching code ...
+      
+    } catch (error) {
+      console.error('Failed to load messages:', error);
+      // Don't set error state here to avoid disrupting the UI if just history fails
     }
   };
   
@@ -338,7 +412,10 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
       console.log(`Leaving household ${householdId} with socket ID: ${socket.id}`);
       
       // Emit leave event
-      socket.emit('leave', { household_id: householdId }, (response: any) => {
+      socket.emit('leave_household', { 
+        token,
+        household_id: householdId 
+      }, (response: any) => {
         if (response && response.error) {
           console.error('Error leaving household:', response.error);
         } else {
@@ -379,10 +456,13 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     
     try {
       const messageData = {
+        token,
         household_id: currentHouseholdRef.current,
         content,
         is_announcement: isAnnouncement
       };
+      
+      console.log('Attempting to send message:', messageData);
       
       socket.emit('message', messageData, (response: any) => {
         if (response && response.error) {
@@ -429,31 +509,75 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
 
   const stopTyping = () => {
     if (!socket || !token || !currentHouseholdId) return;
-
+    
+    // Ensure token is a string
+    const tokenToSend = typeof token === 'string' ? token : String(token);
+    
+    console.log('Stopping typing with token and household:', tokenToSend, currentHouseholdId);
+    
     socket.emit('typing_stop', {
-      token,
+      token: tokenToSend,
       household_id: currentHouseholdId,
     });
   };
 
   // Poll creation
-  const createPoll = (question: string, options: string[], expiresAt: string) => {
-    if (!token || !currentHouseholdId) return;
-
-    fetch(`${apiUrl}/households/${currentHouseholdId}/polls`, {
+  const createPoll = (question: string, options: string[], expiryDate: string) => {
+    if (!token || !currentHouseholdRef.current) {
+      console.error('Cannot create poll: missing token or household');
+      return;
+    }
+    
+    const pollData = {
+      question,
+      options,
+      expires_at: expiryDate
+    };
+    
+    console.log('Creating poll:', pollData);
+    console.log('API URL:', `${apiUrl}/households/${currentHouseholdRef.current}/polls`);
+    console.log('Using token:', token.substring(0, 15) + '...');
+    
+    fetch(`${apiUrl}/households/${currentHouseholdRef.current}/polls`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
       },
-      body: JSON.stringify({
-        question,
-        options,
-        expires_at: expiresAt,
-      }),
-    }).catch((err) => {
+      body: JSON.stringify(pollData),
+      credentials: 'include'
+    })
+    .then(response => {
+      console.log('Poll creation status:', response.status);
+      return response.text().then(text => {
+        try {
+          // Try to parse as JSON
+          const data = text ? JSON.parse(text) : {};
+          console.log('Poll response data:', data);
+          
+          if (!response.ok) {
+            throw new Error(`Failed to create poll: ${data.error || response.statusText}`);
+          }
+          
+          return data;
+        } catch (err) {
+          // If not valid JSON, log the raw response
+          console.log('Raw response:', text);
+          if (!response.ok) {
+            throw new Error(`Failed to create poll: ${response.statusText}`);
+          }
+        }
+      });
+    })
+    .then(data => {
+      console.log('Poll created successfully:', data);
+      // The poll will be added via the socket event
+    })
+    .catch(err => {
+      console.error('Error creating poll:', err);
       setError('Failed to create poll: ' + err.message);
-      console.error('Poll creation error:', err);
     });
   };
 
@@ -497,4 +621,4 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   };
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
-}; 
+};

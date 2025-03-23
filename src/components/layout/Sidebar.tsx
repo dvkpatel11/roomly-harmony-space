@@ -11,11 +11,6 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { NavLink } from "react-router-dom";
-import { useHousehold } from "@/contexts/HouseholdContext";
-import { useMemo } from "react";
-
-const Sidebar = () => {
-  const { currentHousehold } = useHousehold();
 
 export const navItems = [
   { href: "/dashboard", icon: HomeIcon, label: "Home" },
