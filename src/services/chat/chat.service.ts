@@ -26,7 +26,6 @@ export class ProdChatService extends BaseService implements ChatService {
   private _messages: Message[] = [];
   private socket: WebSocket | null = null;
   private eventHandlers: Map<string, ((event: WebSocketEvent) => void)[]> = new Map();
-
   get messages(): Message[] {
     return this._messages;
   }

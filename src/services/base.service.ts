@@ -102,7 +102,9 @@ export abstract class BaseService {
     try {
       // Validate household ID for household-specific services
       if (this.isHouseholdSpecific && !this.currentHouseholdId) {
-        throw new Error("No household selected");
+        const error = new Error("No household selected");
+        console.warn("API request skipped:", error.message);
+        throw error;
       }
 
       const response = await requestFn();

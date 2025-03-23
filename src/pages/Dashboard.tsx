@@ -6,10 +6,11 @@ import { useToast } from "@/hooks/use-toast";
 import { getHouseholds, getTasks } from "@/services/service-factory";
 import { CheckCircle, Home, ListChecks, Plus, Users } from "lucide-react";
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 
 const Dashboard = () => {
   const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);  // Start with loading state
   const [tasksLoading, setTasksLoading] = useState(false);
   const [currentHousehold, setCurrentHousehold] = useState<any>(null);
   const [householdMembers, setHouseholdMembers] = useState<any[]>([]);
@@ -21,19 +22,25 @@ const Dashboard = () => {
     const loadInitialData = async () => {
       try {
         const householdService = getHouseholds();
-        const activeHousehold = await householdService.getActiveHousehold();
-
-        if (activeHousehold) {
-          setCurrentHousehold(activeHousehold);
-          setHouseholdMembers(activeHousehold.members || []);
-        }
-
+        
+        // Load all households first
         const households = await householdService.getHouseholds();
         setHouseholdsList(households);
+        
+        // Then try to get active household
+        try {
+          const activeHousehold = await householdService.getActiveHousehold();
 
-        // Load tasks after we have the household
-        if (activeHousehold) {
-          loadTasks(activeHousehold.id);
+          if (activeHousehold) {
+            setCurrentHousehold(activeHousehold);
+            setHouseholdMembers(activeHousehold.members || []);
+            
+            // Load tasks after we have the household
+            loadTasks(activeHousehold.id);
+          }
+        } catch (error) {
+          console.log("No active household available:", error);
+          // We already loaded the households list, so we can continue
         }
       } catch (error) {
         console.error("Error loading initial data:", error);
@@ -42,6 +49,8 @@ const Dashboard = () => {
           description: "Failed to load household data",
           variant: "destructive",
         });
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -94,8 +103,8 @@ const Dashboard = () => {
     }
   };
 
-  // If no household is loaded yet, show a loading state
-  if (!currentHousehold) {
+  // If still loading, show a loading state
+  if (loading) {
     return (
       <PageTransition>
         <div className="space-y-6">
@@ -106,6 +115,62 @@ const Dashboard = () => {
             <ShimmerCard className="h-24" />
             <ShimmerCard className="h-24" />
           </div>
+        </div>
+      </PageTransition>
+    );
+  }
+
+  // If no household is available, show empty state with option to create or join
+  if (!currentHousehold) {
+    return (
+      <PageTransition>
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+              <p className="text-muted-foreground">Get started by creating or joining a household.</p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Households</CardTitle>
+                <Home className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{householdsList.length}</div>
+                <p className="text-xs text-muted-foreground">
+                  {householdsList.length === 0
+                    ? "No households yet"
+                    : `${householdsList.length} available`}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>No Active Household</CardTitle>
+              <CardDescription>You need to create or join a household to get started.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col gap-4 sm:flex-row">
+                <Button asChild>
+                  <Link to="/household">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create Household
+                  </Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link to="/household">
+                    <Users className="mr-2 h-4 w-4" />
+                    Join Household
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </PageTransition>
     );

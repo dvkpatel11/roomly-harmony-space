@@ -4,6 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { DataProvider } from "@/contexts/DataContext";
 import { HouseholdProvider } from "@/contexts/HouseholdContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ChatProvider } from "@/contexts/ChatContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { getAuth } from "@/services/service-factory";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -15,6 +17,7 @@ import Login from "./pages/Auth/Login";
 import Register from "./pages/Auth/Register";
 import Dashboard from "./pages/Dashboard";
 import Household from "./pages/Household";
+import Chat from "./pages/Chat";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
@@ -49,55 +52,40 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
       <div className="flex-1 flex flex-col max-w-full overflow-x-hidden">
         <Header />
         <main className="flex-1 p-4 md:p-6">{children}</main>
+        {isMobile && <MobileNav />}
       </div>
-      {isMobile && <MobileNav />}
     </div>
   );
 };
 
-// AuthWrapper to handle auth-dependent providers
+// Auth wrapper for all routes
 const AuthWrapper = ({ children }: { children: React.ReactNode }) => {
-  const isAuthenticated = getAuth().isAuthenticated();
   const location = useLocation();
-  const isPublicPath = ["/", "/login", "/register"].includes(location.pathname);
+  const isAuthRoute = location.pathname === "/login" || location.pathname === "/register";
+  const isAuthenticated = getAuth().isAuthenticated();
 
-  // If trying to access protected route without auth, redirect to login
-  if (!isAuthenticated && !isPublicPath) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+  if (isAuthenticated && isAuthRoute) {
+    return <Navigate to="/dashboard" replace />;
   }
 
-  // If trying to access auth pages while authenticated, let the route handle it
-  if (isAuthenticated && isPublicPath) {
-    return children;
+  if (!isAuthenticated && !isAuthRoute && location.pathname !== "/") {
+    return <Navigate to="/login" replace />;
   }
 
-  // For public routes when not authenticated
-  if (!isAuthenticated) {
-    return children;
-  }
-
-  // For authenticated routes, wrap with providers
-  return (
-    <HouseholdProvider>
-      <DataProvider>{children}</DataProvider>
-    </HouseholdProvider>
-  );
+  return <>{children}</>;
 };
 
-// Animation wrapper for route transitions
+// Animated routes component
 const AnimatedRoutes = () => {
   const location = useLocation();
-  const isAuthenticated = getAuth().isAuthenticated();
 
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
-        {/* Public routes */}
         <Route path="/" element={<Index />} />
-        <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />} />
-        <Route path="/register" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <Register />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
 
-        {/* Protected routes */}
         <Route
           path="/dashboard"
           element={
@@ -106,6 +94,43 @@ const AnimatedRoutes = () => {
             </AppLayout>
           }
         />
+
+        <Route
+          path="/household/:householdId"
+          element={
+            <AppLayout>
+              <Household />
+            </AppLayout>
+          }
+        />
+
+        <Route
+          path="/household/:householdId/chat"
+          element={
+            <AppLayout>
+              <Chat />
+            </AppLayout>
+          }
+        />
+        
+        <Route
+          path="/chat"
+          element={
+            <AppLayout>
+              <Chat />
+            </AppLayout>
+          }
+        />
+
+        <Route
+          path="/chat/:householdId"
+          element={
+            <AppLayout>
+              <Chat />
+            </AppLayout>
+          }
+        />
+
         <Route
           path="/tasks"
           element={
@@ -114,6 +139,7 @@ const AnimatedRoutes = () => {
             </AppLayout>
           }
         />
+
         <Route
           path="/profile"
           element={
@@ -122,36 +148,38 @@ const AnimatedRoutes = () => {
             </AppLayout>
           }
         />
-        <Route
-          path="/household"
-          element={
-            <AppLayout>
-              <Household />
-            </AppLayout>
-          }
-        />
 
-        {/* Catch all route */}
         <Route path="*" element={<NotFound />} />
       </Routes>
     </AnimatePresence>
   );
 };
 
+// API URL from environment
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider>
-      <TooltipProvider>
-        <BrowserRouter>
-          <AuthWrapper>
-            <Toaster />
-            <Sonner />
-            <AnimatedRoutes />
-          </AuthWrapper>
-        </BrowserRouter>
-      </TooltipProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
+  <BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <HouseholdProvider>  {/* Move this up, before DataProvider */}
+          <AuthProvider apiUrl={API_URL}>
+            <ChatProvider apiUrl={API_URL}>
+              <DataProvider>  {/* This needs HouseholdProvider to be a parent */}
+                <TooltipProvider>
+                  <AuthWrapper>
+                    <AnimatedRoutes />
+                  </AuthWrapper>
+                  <Toaster />
+                  <Sonner />
+                </TooltipProvider>
+              </DataProvider>
+            </ChatProvider>
+          </AuthProvider>
+        </HouseholdProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  </BrowserRouter>
 );
 
 export default App;

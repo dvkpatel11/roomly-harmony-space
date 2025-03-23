@@ -41,7 +41,7 @@ export class ProdBadgeService extends BaseService implements BadgeService {
 
   async getUserBadges(userId: string = "me"): Promise<Badge[]> {
     const response = await this.handleRequest<{ badges: Badge[] }>(() =>
-      fetch(`${this.apiUrl}/users/${userId}/badges`, {
+      fetch(`${this.apiUrl}/users/me/badges`, {
         headers: this.getHeaders(),
       })
     );

@@ -1,24 +1,37 @@
 import { cn } from "@/lib/utils";
-import { Calendar, CheckSquare, Home, User, Users } from "lucide-react";
-import React from "react";
+import { Calendar, CheckSquare, Home, MessageSquare, User, Users } from "lucide-react";
+import React, { useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
-
-const navItems = [
-  { name: "Home", path: "/dashboard", icon: Home },
-  { name: "Tasks", path: "/tasks", icon: CheckSquare },
-  { name: "Household", path: "/household", icon: Users },
-  { name: "Calendar", path: "/calendar", icon: Calendar },
-  { name: "Profile", path: "/profile", icon: User },
-];
+import { useHousehold } from "@/contexts/HouseholdContext";
 
 const MobileNav: React.FC = () => {
   const location = useLocation();
+  const { currentHousehold } = useHousehold();
+
+  // Define nav items with dynamic paths where needed
+  const navItems = useMemo(() => [
+    { name: "Home", path: "/dashboard", icon: Home },
+    { name: "Tasks", path: "/tasks", icon: CheckSquare },
+    { name: "Household", path: "/household", icon: Users },
+    // Use the current household ID for the chat link if available
+    { 
+      name: "Chat", 
+      path: currentHousehold?.id ? `/chat/${currentHousehold.id}` : "/chat", 
+      icon: MessageSquare 
+    },
+    { name: "Profile", path: "/profile", icon: User },
+  ], [currentHousehold]);
 
   return (
     <div className="md:hidden fixed bottom-0 left-0 right-0 bg-background border-t border-border z-50">
       <div className="grid grid-cols-5 h-16">
         {navItems.map((item) => {
-          const isActive = location.pathname === item.path;
+          // Match chat routes more generically
+          const isActive = 
+            item.name === "Chat" 
+              ? location.pathname.includes("/chat") 
+              : location.pathname === item.path ||
+                (item.name === "Household" && location.pathname.includes("/household"));
 
           return (
             <Link

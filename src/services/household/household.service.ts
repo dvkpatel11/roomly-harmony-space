@@ -110,28 +110,51 @@ export class ProdHouseholdService extends BaseService implements HouseholdServic
 
       return response;
     } catch (error) {
-      if ((error as any)?.code === 404) {
-        return null;
-      }
-      throw error;
+      console.log('Failed to get active household:', error);
+      // Return null if no active household or user doesn't have households
+      return null;
     }
   }
 
   async setActiveHousehold(householdId: string): Promise<boolean> {
-    // Update user preferences to set active household
-    await this.handleRequest(
-      () =>
-        fetch(`${this.apiUrl}/users/me/preferences`, {
-          method: "PATCH",
-          headers: this.getHeaders(),
-          body: JSON.stringify({
-            active_household: householdId,
+    try {
+      // First set it via the /households/active endpoint
+      await this.handleRequest(
+        () =>
+          fetch(`${this.apiUrl}/households/active/${householdId}`, {
+            method: "POST",
+            headers: this.getHeaders(),
           }),
-        }),
-      "Active household updated"
-    );
-
-    return true;
+        "Active household set"
+      );
+      
+      // Then update user preferences as fallback
+      await this.handleRequest(
+        () =>
+          fetch(`${this.apiUrl}/users/me/preferences`, {
+            method: "PATCH",
+            headers: this.getHeaders(),
+            body: JSON.stringify({
+              active_household: householdId,
+            }),
+          }),
+        "Active household updated in preferences"
+      );
+      
+      // Load the household details
+      const householdDetails = await this.getHouseholdDetails(householdId);
+      this._currentHousehold = {
+        id: householdDetails.id,
+        name: householdDetails.name,
+        admin_id: householdDetails.admin_id,
+        createdAt: householdDetails.createdAt,
+      };
+      
+      return true;
+    } catch (error) {
+      console.error("Failed to set active household:", error);
+      return false;
+    }
   }
 
   async updateMemberRole(householdId: string, memberId: string, request: UpdateRoleRequest): Promise<void> {

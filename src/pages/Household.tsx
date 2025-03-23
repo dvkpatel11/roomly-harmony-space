@@ -85,19 +85,31 @@ const Household: React.FC = () => {
     }
 
     try {
-      await getHouseholds().createHousehold({ name: newHouseholdName });
+      const householdService = getHouseholds();
+      const response = await householdService.createHousehold({ name: newHouseholdName });
+      
+      // If successful, close dialog and refresh households
       toast({
         title: "Success",
         description: "Household created successfully",
       });
+      
+      // Set the newly created household as active
+      if (response && response.household) {
+        await householdService.setActiveHousehold(response.household.id);
+      }
+      
       setNewHouseholdName("");
       setShowCreateDialog(false);
-      refreshHouseholds();
+      
+      // Refresh the households list
+      await refreshHouseholds();
+      
     } catch (err) {
       console.error("Failed to create household", err);
       toast({
         title: "Error",
-        description: "Failed to create household",
+        description: "Failed to create household: " + (err instanceof Error ? err.message : String(err)),
         variant: "destructive",
       });
     }
@@ -249,19 +261,20 @@ const Household: React.FC = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create New Household</DialogTitle>
-            <DialogDescription>Create a new household to manage tasks and chores with others</DialogDescription>
+            <DialogDescription>Enter a name for your new household</DialogDescription>
           </DialogHeader>
-          <FormGroup>
-            <FormLabel htmlFor="new-household-name" required>
-              Household Name
-            </FormLabel>
-            <FormInput
-              id="new-household-name"
-              value={newHouseholdName}
-              onChange={(e) => setNewHouseholdName(e.target.value)}
-              placeholder="Enter household name"
-            />
-          </FormGroup>
+          <div className="space-y-4 py-2">
+            <FormGroup>
+              <FormLabel htmlFor="household-name">Household Name</FormLabel>
+              <FormInput 
+                id="household-name" 
+                value={newHouseholdName}
+                onChange={(e) => setNewHouseholdName(e.target.value)}
+                placeholder="Enter a name for your household" 
+                autoFocus
+              />
+            </FormGroup>
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
               Cancel

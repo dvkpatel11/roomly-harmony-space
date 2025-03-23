@@ -5,22 +5,33 @@ import {
   CalendarClockIcon,
   CheckSquareIcon,
   HomeIcon,
+  MessageSquareIcon,
   SettingsIcon,
   UsersIcon,
 } from "lucide-react";
 import { NavLink } from "react-router-dom";
-
-const navItems = [
-  { href: "/dashboard", icon: HomeIcon, label: "Dashboard" },
-  { href: "/tasks", icon: CheckSquareIcon, label: "Tasks" },
-  { href: "/household", icon: UsersIcon, label: "Household" },
-  { href: "/calendar", icon: CalendarClockIcon, label: "Calendar" },
-  { href: "/analytics", icon: BarChart3Icon, label: "Analytics" },
-  { href: "/notifications", icon: BellIcon, label: "Notifications" },
-  { href: "/settings", icon: SettingsIcon, label: "Settings" },
-];
+import { useHousehold } from "@/contexts/HouseholdContext";
+import { useMemo } from "react";
 
 const Sidebar = () => {
+  const { currentHousehold } = useHousehold();
+
+  const navItems = useMemo(() => [
+    { href: "/dashboard", icon: HomeIcon, label: "Dashboard" },
+    { href: "/tasks", icon: CheckSquareIcon, label: "Tasks" },
+    { href: "/household", icon: UsersIcon, label: "Household" },
+    // Use current household ID for chat if available
+    { 
+      href: currentHousehold?.id ? `/chat/${currentHousehold.id}` : "/chat", 
+      icon: MessageSquareIcon, 
+      label: "Chat" 
+    },
+    { href: "/calendar", icon: CalendarClockIcon, label: "Calendar" },
+    { href: "/analytics", icon: BarChart3Icon, label: "Analytics" },
+    { href: "/notifications", icon: BellIcon, label: "Notifications" },
+    { href: "/settings", icon: SettingsIcon, label: "Settings" },
+  ], [currentHousehold]);
+
   return (
     <div className="hidden border-r lg:block lg:w-60 xl:w-72">
       <div className="flex h-full max-h-screen flex-col gap-2">
@@ -32,7 +43,7 @@ const Sidebar = () => {
         </div>
         <div className="flex-1 overflow-auto py-2">
           <nav className="grid items-start px-2 text-sm font-medium">
-            {navItems.map((item, index) => (
+            {navItems.map((item) => (
               <NavLink
                 key={item.href}
                 to={item.href}
