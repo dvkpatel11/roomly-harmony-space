@@ -2,27 +2,25 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormGroup, FormInput, FormLabel } from "@/components/ui/form-components";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
-import { useHousehold } from "@/contexts/HouseholdContext";
+import { useHouseholds } from "@/hooks/use-households";
 import { useToast } from "@/hooks/use-toast";
-import { getHouseholds } from "@/services/service-factory";
 import { User, Users } from "lucide-react";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-export const JoinHouseholdForm: React.FC = () => {
+export function JoinHouseholdForm() {
   const [inviteCode, setInviteCode] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const { refreshHouseholds } = useHousehold();
+  const [loading, setLoading] = useState(false);
+  const { joinHousehold } = useHouseholds();
   const { toast } = useToast();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    setLoading(true);
 
     try {
-      const response = await getHouseholds().joinHousehold(inviteCode.trim());
-      await refreshHouseholds();
+      const response = await joinHousehold(inviteCode.trim());
 
       toast({
         title: "Successfully Joined Household",
@@ -45,7 +43,7 @@ export const JoinHouseholdForm: React.FC = () => {
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
@@ -75,8 +73,8 @@ export const JoinHouseholdForm: React.FC = () => {
               icon={<Users className="h-4 w-4" />}
             />
           </FormGroup>
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? (
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? (
               <>
                 <LoadingSpinner size="sm" className="mr-2" />
                 Joining...
@@ -89,4 +87,4 @@ export const JoinHouseholdForm: React.FC = () => {
       </CardContent>
     </Card>
   );
-};
+}

@@ -9,11 +9,11 @@ import { Shield } from "lucide-react";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-export const CreateHouseholdForm: React.FC = () => {
+export function CreateHouseholdForm() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { refreshHouseholds } = useHousehold();
-  const [isLoading, setIsLoading] = useState(false);
+  const { refreshHouseholds, setCurrentHousehold } = useHousehold();
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -23,14 +23,37 @@ export const CreateHouseholdForm: React.FC = () => {
     e.preventDefault();
     if (!formData.name.trim()) return;
 
-    setIsLoading(true);
+    console.log("[CreateHouseholdForm] Starting household creation...");
+    setLoading(true);
     try {
+      console.log("[CreateHouseholdForm] Creating household with data:", {
+        name: formData.name.trim(),
+        description: formData.description.trim(),
+      });
+
       const response = await getHouseholds().createHousehold({
         name: formData.name.trim(),
         description: formData.description.trim(),
       });
 
-      await refreshHouseholds();
+      console.log("[CreateHouseholdForm] Household created successfully:", response);
+
+      // Refresh households in the context and get the updated list
+      const households = await refreshHouseholds();
+      console.log("[CreateHouseholdForm] Households refreshed in context");
+
+      // Find and set the newly created household as current
+      const newHousehold = households.find((h) => h.id === response.household.id);
+      if (!newHousehold) {
+        throw new Error("Failed to find newly created household");
+      }
+
+      console.log("[CreateHouseholdForm] Setting new household as current:", newHousehold.id);
+      await setCurrentHousehold(newHousehold);
+      console.log("[CreateHouseholdForm] Current household set successfully");
+
+      // Wait for a small delay to ensure all state updates are processed
+      await new Promise((resolve) => setTimeout(resolve, 100));
 
       toast({
         title: "Household Created Successfully",
@@ -45,16 +68,19 @@ export const CreateHouseholdForm: React.FC = () => {
         ),
       });
 
-      // Navigate to the new household's settings
-      navigate(`/household/settings?id=${response.household.id}`);
+      console.log("[CreateHouseholdForm] Attempting navigation to /dashboard");
+      navigate("/dashboard", { replace: true });
+      console.log("[CreateHouseholdForm] Navigation called");
     } catch (error) {
+      console.error("[CreateHouseholdForm] Error creating household:", error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to create household.",
         variant: "destructive",
       });
     } finally {
-      setIsLoading(false);
+      setLoading(false);
+      console.log("[CreateHouseholdForm] Form submission completed");
     }
   };
 
@@ -83,8 +109,8 @@ export const CreateHouseholdForm: React.FC = () => {
               required
             />
           </FormGroup>
-          <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? (
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? (
               <>
                 <LoadingSpinner size="sm" className="mr-2" />
                 Creating...
@@ -97,4 +123,4 @@ export const CreateHouseholdForm: React.FC = () => {
       </CardContent>
     </Card>
   );
-};
+}

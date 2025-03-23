@@ -20,7 +20,7 @@ import {
   NotificationSettings,
   UnreadCountResponse,
 } from "./notification";
-import { CreatePollRequest, CreatePollResponse, PollResponse, VoteRequest, VoteResponse } from "./poll";
+import { CreatePollRequest, CreatePollResponse, Poll, PollResponse, VoteRequest, VoteResponse } from "./poll";
 import {
   CompleteTaskResponse,
   CreateTaskRequest,
@@ -91,9 +91,6 @@ export interface CalendarService extends BaseService {
 
 export interface ChatService extends BaseService {
   getMessages(householdId: string, params?: { limit?: number; before?: string }): Promise<ChatResponse>;
-  createPoll(householdId: string, request: CreatePollRequest): Promise<CreatePollResponse>;
-  getPoll(pollId: string): Promise<PollResponse>;
-  vote(pollId: string, request: VoteRequest): Promise<VoteResponse>;
 
   // WebSocket methods
   connect(token: string): void;
@@ -140,6 +137,27 @@ export interface BadgeService extends BaseService {
   // Admin methods
   createBadge(badge: { type: BadgeType; name: string; description?: string }): Promise<CreateBadgeResponse>;
   awardBadge(badgeId: string, userId: string): Promise<AwardBadgeResponse>;
+}
+
+export interface PollService extends BaseService {
+  polls: Poll[];
+
+  createPoll(householdId: string, request: CreatePollRequest): Promise<CreatePollResponse>;
+  getPolls(
+    householdId: string,
+    params?: {
+      status?: "active" | "expired" | "all";
+      page?: number;
+      per_page?: number;
+    }
+  ): Promise<PollResponse[]>;
+  getPoll(pollId: string): Promise<PollResponse>;
+  vote(pollId: string, request: VoteRequest): Promise<VoteResponse>;
+  deletePoll(pollId: string): Promise<void>;
+
+  // WebSocket event handlers
+  on(event: string, handler: (event: WebSocketEvent) => void): void;
+  off(event: string, handler: (event: WebSocketEvent) => void): void;
 }
 
 export type {

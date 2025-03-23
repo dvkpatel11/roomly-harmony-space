@@ -1,13 +1,9 @@
 export interface Message {
   id: string;
   content: string;
+  sender: string;
   is_announcement: boolean;
   created_at: string;
-  user: {
-    id: string;
-    name: string;
-    avatar?: string;
-  };
 }
 
 export interface SendMessageRequest {
@@ -18,7 +14,8 @@ export interface SendMessageRequest {
 export interface ChatResponse {
   messages: Message[];
   total: number;
-  has_more: boolean;
+  page: number;
+  per_page: number;
 }
 
 export interface WebSocketEvent {
@@ -28,7 +25,12 @@ export interface WebSocketEvent {
 
 export interface NewMessageEvent extends WebSocketEvent {
   type: "new_message";
-  message: Message;
+  id: string;
+  content: string;
+  sender_id: string;
+  sender_email: string;
+  is_announcement: boolean;
+  created_at: string;
 }
 
 export interface JoinedEvent extends WebSocketEvent {
@@ -41,15 +43,18 @@ export interface JoinedEvent extends WebSocketEvent {
   };
 }
 
-export interface UserJoinedEvent {
+export interface UserJoinedEvent extends WebSocketEvent {
+  type: "user_joined";
   user_id: string;
   email: string;
 }
 
-export interface UserOfflineEvent {
+export interface UserOfflineEvent extends WebSocketEvent {
+  type: "user_offline";
   user_id: string;
 }
 
-export interface ErrorEvent {
+export interface ErrorEvent extends WebSocketEvent {
+  type: "error";
   message: string;
 }

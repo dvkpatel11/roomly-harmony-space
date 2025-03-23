@@ -2,41 +2,39 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormInput, FormLabel } from "@/components/ui/form-components";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
-import { useHousehold } from "@/contexts/HouseholdContext";
+import { useHousehold } from "@/hooks/use-household";
 import { useToast } from "@/hooks/use-toast";
-import { getHouseholds } from "@/services/service-factory";
 import { Settings } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
-export const HouseholdSettings: React.FC = () => {
-  const { currentHousehold, refreshHouseholds } = useHousehold();
+interface HouseholdSettingsProps {
+  householdId: string;
+}
+
+export function HouseholdSettings({ householdId }: HouseholdSettingsProps) {
+  const { household, loading, error, updateHousehold } = useHousehold(householdId);
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
   });
 
   useEffect(() => {
-    if (currentHousehold) {
+    if (household) {
       setFormData({
-        name: currentHousehold.name,
-        description: currentHousehold.description || "",
+        name: household.name,
+        description: household.description || "",
       });
     }
-  }, [currentHousehold]);
+  }, [household]);
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentHousehold) return;
-
-    setIsLoading(true);
     try {
-      await getHouseholds().updateHousehold(currentHousehold.id, {
+      await updateHousehold({
         name: formData.name,
         description: formData.description,
       });
-      await refreshHouseholds();
       toast({
         title: "Settings saved",
         description: "Your household settings have been updated successfully.",
@@ -47,12 +45,18 @@ export const HouseholdSettings: React.FC = () => {
         description: error instanceof Error ? error.message : "Failed to save household settings.",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  if (!currentHousehold) return null;
+  if (error) {
+    return (
+      <div className="p-4 text-red-500">
+        <p>{error}</p>
+      </div>
+    );
+  }
+
+  if (!household) return null;
 
   return (
     <Card>
@@ -86,13 +90,13 @@ export const HouseholdSettings: React.FC = () => {
             />
           </div>
           <div className="flex justify-end">
-            <Button type="submit" disabled={isLoading}>
-              <LoadingSpinner size="sm" className="mr-2" />
-              {isLoading ? "Saving..." : "Save Changes"}
+            <Button type="submit" disabled={loading} className="flex items-center justify-center">
+              {loading && <LoadingSpinner size="sm" className="mr-2" />}
+              {loading ? "Saving..." : "Save"}
             </Button>
           </div>
         </form>
       </CardContent>
     </Card>
   );
-};
+}

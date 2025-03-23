@@ -28,8 +28,8 @@ const Household: React.FC = () => {
   if (!currentHousehold) {
     return (
       <PageTransition>
-        <div className="container max-w-4xl py-8">
-          <div className="flex items-center gap-4 mb-8">
+        <div className="max-w-7xl space-y-6">
+          <div className="flex items-center gap-4">
             <Home className="h-8 w-8" />
             <div>
               <h1 className="text-2xl font-bold">Welcome to Household Management</h1>
@@ -37,7 +37,7 @@ const Household: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid gap-6">
+          <div className="grid gap-4">
             <Card>
               <CardHeader>
                 <CardTitle>Create New Household</CardTitle>
@@ -58,19 +58,18 @@ const Household: React.FC = () => {
 
   return (
     <PageTransition>
-      <div className="container max-w-4xl py-8">
-        <div className="flex items-center gap-4 mb-8">
-          <Home className="h-8 w-8" />
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold">Manage {currentHousehold.name}</h1>
             <p className="text-muted-foreground">Configure and manage your household</p>
           </div>
         </div>
 
-        <div className="grid gap-6">
+        <div className="grid gap-4">
           <HouseholdOverview />
-          <HouseholdMembers />
-          <HouseholdSettings />
+          <HouseholdMembers householdId={currentHousehold.id} />
+          <HouseholdSettings householdId={currentHousehold.id} />
           <HouseholdDangerZone />
         </div>
       </div>

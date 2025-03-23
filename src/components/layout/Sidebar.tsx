@@ -39,7 +39,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className, isCollapsed = false, onCol
     <div
       className={cn(
         "hidden md:flex flex-col border-r transition-all duration-300",
-        localCollapsed ? "md:w-[68px]" : "md:w-60 xl:w-72",
+        localCollapsed ? "md:w-[72px]" : "md:w-60 xl:w-60",
         className
       )}
     >
@@ -47,13 +47,13 @@ const Sidebar: React.FC<SidebarProps> = ({ className, isCollapsed = false, onCol
         <div className="flex h-16 items-center border-b px-4">
           <NavLink
             to="/dashboard"
-            className={cn("flex items-center gap-2 font-semibold", localCollapsed ? "justify-center w-full" : "flex-1")}
+            className={cn("flex items-center gap-2", localCollapsed ? "justify-center w-full" : "flex-1")}
           >
-            <AnimatedLogo className="h-6 w-6" showText={!localCollapsed} />
+            <AnimatedLogo size={"md"} showText={!localCollapsed} />
           </NavLink>
           <button
             onClick={handleCollapse}
-            className="hidden md:block p-2 rounded-lg hover:bg-primary/10 transition-colors"
+            className="hidden md:block rounded-lg hover:bg-primary/10 transition-colors ml-2"
             title={localCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {localCollapsed ? <ChevronRightIcon className="h-4 w-4" /> : <ChevronLeftIcon className="h-4 w-4" />}
@@ -67,15 +67,15 @@ const Sidebar: React.FC<SidebarProps> = ({ className, isCollapsed = false, onCol
                 to={item.href}
                 className={({ isActive }) =>
                   cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:bg-primary/10",
+                    "flex items-center gap-3 rounded-lg px-3 py-2 mt-2 transition-all hover:bg-primary/10",
                     isActive ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground",
                     localCollapsed && "justify-center px-2"
                   )
                 }
                 title={localCollapsed ? item.label : undefined}
               >
-                <item.icon className="h-5 w-5" />
-                {!localCollapsed && <span>{item.label}</span>}
+                <item.icon className="h-6 w-6" />
+                {!localCollapsed && <p className="text-muted-foreground">{item.label}</p>}
               </NavLink>
             ))}
           </nav>

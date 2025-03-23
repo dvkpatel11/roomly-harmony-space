@@ -73,7 +73,7 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
       {!isMobile && <Sidebar className="flex-shrink-0" />}
       <div className="flex flex-col flex-1 min-w-0">
         <Header className="flex-shrink-0" />
-        <main className="flex-1 overflow-y-auto p-4 pb-20 md:p-6 md:pb-6">{children}</main>
+        <main className="px-6 py-4 flex-1 overflow-y-auto">{children}</main>
       </div>
       {isMobile && <MobileNav />}
     </div>
@@ -82,14 +82,52 @@ const AppLayout = ({ children }: { children: React.ReactNode }) => {
 
 // AuthenticatedApp handles all routes that require authentication
 const AuthenticatedApp = () => {
-  const { isNewUser } = useHousehold();
+  const { isNewUser, households, loading } = useHousehold();
   const location = useLocation();
+
+  console.log("[AuthenticatedApp] Current state:", {
+    isNewUser,
+    householdsCount: households.length,
+    loading,
+    currentPath: location.pathname,
+  });
+
+  // Show loading state while checking household status
+  if (loading) {
+    console.log("[AuthenticatedApp] Loading state, showing spinner");
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <LoadingSpinner size="lg" />
+      </div>
+    );
+  }
 
   // If authenticated and new user, redirect to welcome page
   if (isNewUser && location.pathname !== "/household/welcome") {
+    console.log("[AuthenticatedApp] New user detected, redirecting to welcome page");
     return <Navigate to="/household/welcome" replace />;
   }
 
+  // If user has no households and not on create page, redirect to create
+  if (
+    households.length === 0 &&
+    !location.pathname.startsWith("/household/create") &&
+    !location.pathname.startsWith("/household/welcome")
+  ) {
+    console.log("[AuthenticatedApp] No households found, redirecting to create page");
+    return <Navigate to="/household/create" replace />;
+  }
+
+  // If user has households but is on welcome/create, redirect to dashboard
+  if (
+    households.length > 0 &&
+    (location.pathname === "/household/welcome" || location.pathname === "/household/create")
+  ) {
+    console.log("[AuthenticatedApp] Has households but on welcome/create, redirecting to dashboard");
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  console.log("[AuthenticatedApp] Proceeding with normal render");
   return (
     <DataProvider>
       <AnimatePresence mode="wait">

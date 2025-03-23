@@ -29,7 +29,7 @@ const HouseholdDangerZone = () => {
 
   const handleLeaveHousehold = async () => {
     try {
-      await leaveHousehold();
+      await leaveHousehold(currentHousehold.id);
       toast({
         title: "Left Household",
         description: `You have successfully left ${currentHousehold.name}`,
@@ -56,7 +56,7 @@ const HouseholdDangerZone = () => {
     }
 
     try {
-      await deleteHousehold();
+      await deleteHousehold(currentHousehold.id);
       toast({
         title: "Household Deleted",
         description: `${currentHousehold.name} has been permanently deleted`,
